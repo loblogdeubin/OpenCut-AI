@@ -5,4 +5,5 @@ export { transformProjectV3ToV4 } from "./v3-to-v4";
 export { transformProjectV4ToV5 } from "./v4-to-v5";
 export { transformProjectV17ToV18 } from "./v17-to-v18";
 export { transformProjectV28ToV29 } from "./v28-to-v29";
+export { transformProjectV31ToV32 } from "./v31-to-v32";
 export type { MigrationResult, ProjectRecord } from "./types";

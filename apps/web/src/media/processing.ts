@@ -3,6 +3,7 @@ import { getMediaTypeFromFile } from "@/media/media-utils";
 import { formatStorageBytes } from "@/services/storage/quota";
 import { storageService } from "@/services/storage/service";
 import type { MediaAsset } from "@/media/types";
+import { computeMediaChecksum } from "@/media/checksum";
 import { readVideoFile } from "./mediabunny";
 import type { VideoFileData } from "./mediabunny";
 import { renderThumbnailDataUrl } from "./thumbnail";
@@ -124,6 +125,8 @@ export async function processMediaAssets({
 		let height: number | undefined;
 		let fps: number | undefined;
 		let hasAudio: boolean | undefined;
+		let videoCodec: string | undefined;
+		let audioCodec: string | undefined;
 
 		try {
 			if (fileType === "image") {
@@ -141,6 +144,8 @@ export async function processMediaAssets({
 						? Math.round(videoData.fps)
 						: undefined;
 					hasAudio = videoData.hasAudio;
+					videoCodec = videoData.codec ?? undefined;
+					audioCodec = videoData.audioCodec ?? undefined;
 					thumbnailUrl = videoData.thumbnailUrl ?? undefined;
 
 					if (!videoData.canDecode) {
@@ -152,9 +157,7 @@ export async function processMediaAssets({
 					}
 				} catch (error) {
 					const message =
-						error instanceof Error
-							? error.message
-							: "Could not process video";
+						error instanceof Error ? error.message : "Could not process video";
 
 					toast.error(`Couldn't process ${file.name}`, {
 						description: message,
@@ -164,6 +167,7 @@ export async function processMediaAssets({
 				duration = await getMediaDuration({ file });
 			}
 
+			const checksum = await computeMediaChecksum({ file });
 			processedAssets.push({
 				name: file.name,
 				type: fileType,
@@ -175,6 +179,12 @@ export async function processMediaAssets({
 				height,
 				fps,
 				hasAudio,
+				checksum,
+				videoCodec,
+				audioCodec,
+				indexStatus: "ready",
+				indexVersion: "browser-media-v1",
+				indexedAt: new Date().toISOString(),
 			});
 
 			await new Promise((resolve) => setTimeout(resolve, 0));

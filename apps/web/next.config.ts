@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 import { withBotId } from "botid/next/config";
 import { withContentCollections } from "@content-collections/next";
 
@@ -9,6 +10,7 @@ const nextConfig: NextConfig = {
 	reactStrictMode: true,
 	productionBrowserSourceMaps: true,
 	output: "standalone",
+	outputFileTracingRoot: path.resolve(process.cwd(), "../.."),
 	images: {
 		remotePatterns: [
 			{

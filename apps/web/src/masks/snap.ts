@@ -37,6 +37,13 @@ function getPreferredEdges({
 }: {
 	handleId: MaskHandleId;
 }): ScaleEdgePreference | undefined {
+	if (handleId.kind === "scale") {
+		return {
+			right: true,
+			bottom: true,
+		};
+	}
+
 	if (handleId.kind === "edge") {
 		return {
 			left: handleId.side === "left",

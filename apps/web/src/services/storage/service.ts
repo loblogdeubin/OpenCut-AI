@@ -157,6 +157,7 @@ class StorageService {
 			scenes: serializedScenes,
 			currentSceneId: project.currentSceneId,
 			settings: project.settings,
+			revision: project.revision,
 			version: project.version,
 			timelineViewState: project.timelineViewState,
 		};
@@ -217,6 +218,10 @@ class StorageService {
 			scenes,
 			currentSceneId: serializedProject.currentSceneId || "",
 			settings: serializedProject.settings,
+			revision:
+				typeof serializedProject.revision === "number"
+					? serializedProject.revision
+					: 0,
 			version: serializedProject.version,
 			timelineViewState: serializedProject.timelineViewState,
 		};
@@ -303,6 +308,15 @@ class StorageService {
 			width: mediaAsset.width,
 			height: mediaAsset.height,
 			duration: mediaAsset.duration,
+			fps: mediaAsset.fps,
+			hasAudio: mediaAsset.hasAudio,
+			checksum: mediaAsset.checksum,
+			videoCodec: mediaAsset.videoCodec,
+			audioCodec: mediaAsset.audioCodec,
+			indexStatus: mediaAsset.indexStatus,
+			indexVersion: mediaAsset.indexVersion,
+			indexedAt: mediaAsset.indexedAt,
+			indexError: mediaAsset.indexError,
 			thumbnailUrl: mediaAsset.thumbnailUrl,
 			ephemeral: mediaAsset.ephemeral,
 		};
@@ -376,6 +390,15 @@ class StorageService {
 			width: metadata.width,
 			height: metadata.height,
 			duration: metadata.duration,
+			fps: metadata.fps,
+			hasAudio: metadata.hasAudio,
+			checksum: metadata.checksum,
+			videoCodec: metadata.videoCodec,
+			audioCodec: metadata.audioCodec,
+			indexStatus: metadata.indexStatus,
+			indexVersion: metadata.indexVersion,
+			indexedAt: metadata.indexedAt,
+			indexError: metadata.indexError,
 			thumbnailUrl: metadata.thumbnailUrl,
 			ephemeral: metadata.ephemeral,
 		};

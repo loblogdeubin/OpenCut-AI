@@ -46,9 +46,15 @@ export interface TProject {
 	scenes: TScene[];
 	currentSceneId: string;
 	settings: TProjectSettings;
+	revision: number;
 	version: number;
 	timelineViewState?: TTimelineViewState;
 }
+
+export type EditableProjectState = Pick<
+	TProject,
+	"scenes" | "currentSceneId" | "settings" | "revision"
+>;
 
 export type TProjectSortKey = "createdAt" | "updatedAt" | "name" | "duration";
 export type TSortOrder = "asc" | "desc";

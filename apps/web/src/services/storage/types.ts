@@ -25,6 +25,13 @@ export interface MediaAssetData {
 	duration?: number;
 	fps?: number;
 	hasAudio?: boolean;
+	checksum?: string;
+	videoCodec?: string;
+	audioCodec?: string;
+	indexStatus?: "pending" | "indexing" | "ready" | "failed";
+	indexVersion?: string;
+	indexedAt?: string;
+	indexError?: string;
 	ephemeral?: boolean;
 	thumbnailUrl?: string;
 }

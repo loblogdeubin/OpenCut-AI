@@ -1,6 +1,8 @@
 #[cfg(target_arch = "wasm32")]
 mod compositor;
 #[cfg(target_arch = "wasm32")]
+mod editor_contracts;
+#[cfg(target_arch = "wasm32")]
 mod effects;
 #[cfg(target_arch = "wasm32")]
 mod gpu;
@@ -11,6 +13,8 @@ mod perf;
 
 #[cfg(target_arch = "wasm32")]
 pub use compositor::*;
+#[cfg(target_arch = "wasm32")]
+pub use editor_contracts::*;
 #[cfg(target_arch = "wasm32")]
 pub use effects::*;
 #[cfg(target_arch = "wasm32")]

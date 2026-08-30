@@ -282,6 +282,18 @@ export class ScenesManager {
 		}
 	}
 
+	replaceScenesFromProject({
+		scenes,
+		currentSceneId,
+	}: {
+		scenes: TScene[];
+		currentSceneId: string;
+	}): void {
+		this.list = scenes;
+		this.active = scenes.find((scene) => scene.id === currentSceneId) ?? null;
+		this.notify();
+	}
+
 	subscribe(listener: () => void): () => void {
 		this.listeners.add(listener);
 		return () => this.listeners.delete(listener);

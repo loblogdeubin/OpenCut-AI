@@ -1,0 +1,78 @@
+{
+	"name": "opencut-ai-windows",
+	"version": "0.1.0",
+	"private": true,
+	"author": "OpenCut AI",
+	"description": "OpenCut AI desktop shell for Windows",
+	"main": "main.cjs",
+	"scripts": {
+		"dev": "electron .",
+		"dist:win": "electron-builder --win nsis portable --x64"
+	},
+	"devDependencies": {
+		"electron": "44.0.0",
+		"electron-builder": "26.15.3"
+	},
+	"build": {
+		"appId": "com.opencut.ai",
+		"productName": "OpenCut AI",
+		"asar": true,
+		"npmRebuild": false,
+		"directories": {
+			"output": "dist"
+		},
+		"files": [
+			"main.cjs",
+			"package.json",
+			"!node_modules/**/*"
+		],
+		"extraResources": [
+			{
+				"from": "../web/.next/standalone",
+				"to": "server"
+			},
+			{
+				"from": "../web/.next/static",
+				"to": "server/apps/web/.next/static"
+			},
+			{
+				"from": "../web/public",
+				"to": "server/apps/web/public"
+			},
+			{
+				"from": "vendor/ai",
+				"to": "ai",
+				"filter": [
+					"**/*"
+				]
+			}
+		],
+		"win": {
+			"icon": "../web/public/icons/ms-icon-310x310.png",
+			"target": [
+				{
+					"target": "nsis",
+					"arch": [
+						"x64"
+					]
+				},
+				{
+					"target": "portable",
+					"arch": [
+						"x64"
+					]
+				}
+			]
+		},
+		"nsis": {
+			"artifactName": "OpenCut-AI-Setup-${version}-${arch}.${ext}",
+			"oneClick": false,
+			"allowToChangeInstallationDirectory": true,
+			"createDesktopShortcut": true,
+			"createStartMenuShortcut": true
+		},
+		"portable": {
+			"artifactName": "OpenCut-AI-Portable-${version}-${arch}.${ext}"
+		}
+	}
+}

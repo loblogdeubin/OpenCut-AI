@@ -4,6 +4,7 @@ import {
 	BlobSource,
 	VideoSampleSink,
 	type VideoCodec,
+	type AudioCodec,
 } from "mediabunny";
 import { createTimelineAudioBuffer } from "@/media/audio";
 import type { SceneTracks } from "@/timeline";
@@ -18,6 +19,7 @@ export type VideoFileData = {
 	fps: number;
 	hasAudio: boolean;
 	codec: VideoCodec | null;
+	audioCodec: AudioCodec | null;
 	canDecode: boolean;
 	thumbnailUrl: string | null;
 };
@@ -70,6 +72,7 @@ export async function readVideoFile({
 			fps: packetStats.averagePacketRate,
 			hasAudio: audioTrack !== null,
 			codec: videoTrack.codec,
+			audioCodec: audioTrack?.codec ?? null,
 			canDecode,
 			thumbnailUrl,
 		};

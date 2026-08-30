@@ -98,6 +98,14 @@ export class CommandManager {
 		return this.redoStack.length > 0;
 	}
 
+	undoExpected({ command }: { command: Command }): boolean {
+		if (this.history.at(-1)?.command !== command) {
+			return false;
+		}
+		this.undo();
+		return true;
+	}
+
 	clear(): void {
 		this.history = [];
 		this.redoStack = [];

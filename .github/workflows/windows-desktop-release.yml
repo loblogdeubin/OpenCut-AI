@@ -1,0 +1,93 @@
+name: Windows Desktop Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "windows-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      BETTER_AUTH_SECRET: "desktop-local-only-secret"
+      NEXT_PUBLIC_SITE_URL: "http://127.0.0.1"
+      DATABASE_URL: "postgresql://opencut:opencut@127.0.0.1:5432/opencut"
+      UPSTASH_REDIS_REST_URL: "https://placeholder.invalid"
+      UPSTASH_REDIS_REST_TOKEN: "desktop-placeholder"
+      NEXT_PUBLIC_MARBLE_API_URL: "https://placeholder.invalid"
+      MARBLE_WORKSPACE_KEY: "desktop-placeholder"
+      FREESOUND_CLIENT_ID: "desktop-placeholder"
+      FREESOUND_API_KEY: "desktop-placeholder"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76
+        with:
+          bun-version: 1.2.18
+
+      - name: Install Rust WASM target
+        shell: pwsh
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+
+      - name: Install JavaScript dependencies
+        shell: pwsh
+        run: bun install --frozen-lockfile
+
+      - name: Build and link local WASM
+        shell: pwsh
+        run: bun run setup:ai
+
+      - name: Prepare bundled FFmpeg
+        shell: pwsh
+        run: |
+          choco install ffmpeg -y --no-progress
+          New-Item -ItemType Directory -Force apps/windows/vendor/ai/bin | Out-Null
+          Copy-Item (Get-Command ffmpeg.exe).Source apps/windows/vendor/ai/bin/ffmpeg.exe
+          Copy-Item (Get-Command ffprobe.exe).Source apps/windows/vendor/ai/bin/ffprobe.exe
+
+      - name: Build bundled whisper.cpp
+        shell: pwsh
+        run: |
+          git clone --depth 1 --branch v1.9.2 https://github.com/ggml-org/whisper.cpp.git build/whisper.cpp
+          cmake -S build/whisper.cpp -B build/whisper.cpp-build -A x64 -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_SERVER=OFF -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF
+          cmake --build build/whisper.cpp-build --config Release --target whisper-cli
+          Copy-Item build/whisper.cpp-build/bin/Release/* apps/windows/vendor/ai/bin/ -Recurse -Force
+
+      - name: Download multilingual Whisper model
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force apps/windows/vendor/ai/models | Out-Null
+          Invoke-WebRequest -Uri "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin?download=true" -OutFile apps/windows/vendor/ai/models/ggml-base.bin
+
+      - name: Build production web server
+        shell: pwsh
+        run: bun run build:web
+
+      - name: Package Windows installer and portable app
+        shell: pwsh
+        run: bun --cwd apps/windows run dist:win
+
+      - name: Upload Windows executables
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenCut-AI-Windows-x64
+          path: apps/windows/dist/*.exe
+          if-no-files-found: error
+
+      - name: Publish tagged GitHub release
+        if: startsWith(github.ref, 'refs/tags/windows-v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" apps/windows/dist/*.exe --generate-notes --title "OpenCut AI Windows ${{ github.ref_name }}"

@@ -7,12 +7,34 @@ export class BatchCommand extends Command {
 
 	execute(): CommandResult | undefined {
 		let latestSelectionResult: CommandResult | undefined;
+		const executedCommands: Command[] = [];
 
-		for (const command of this.commands) {
-			const result = command.execute();
-			if (result?.selection !== undefined) {
-				latestSelectionResult = result;
+		try {
+			for (const command of this.commands) {
+				executedCommands.push(command);
+				const result = command.execute();
+				if (result?.selection !== undefined) {
+					latestSelectionResult = result;
+				}
 			}
+		} catch (executionError) {
+			const rollbackErrors: unknown[] = [];
+			for (const command of [...executedCommands].reverse()) {
+				try {
+					command.undo();
+				} catch (rollbackError) {
+					rollbackErrors.push(rollbackError);
+				}
+			}
+
+			if (rollbackErrors.length > 0) {
+				throw new AggregateError(
+					[executionError, ...rollbackErrors],
+					"Batch command failed and rollback was incomplete",
+				);
+			}
+
+			throw executionError;
 		}
 
 		return latestSelectionResult;

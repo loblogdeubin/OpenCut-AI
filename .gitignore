@@ -25,4 +25,11 @@ target/
 
 .cargo-tools/
 
+# Local AI models, proxy media, and sidecar artifacts
+apps/windows/dist/
+.local-ai/
+
+# macOS Finder metadata
+.DS_Store
+
 rust-migration-notes.md

@@ -1,6 +1,7 @@
 import type { EditorCore } from "@/core";
 import type {
 	TProject,
+	EditableProjectState,
 	TProjectMetadata,
 	TProjectSortKey,
 	TProjectSortOption,
@@ -15,7 +16,10 @@ import { UpdateProjectSettingsCommand } from "@/commands/project";
 import { DEFAULT_BACKGROUND_COLOR } from "@/background/color";
 import { DEFAULT_CANVAS_SIZE } from "@/canvas/sizes";
 import { DEFAULT_FPS } from "@/fps/defaults";
-import { buildDefaultScene, getProjectDurationFromScenes } from "@/timeline/scenes";
+import {
+	buildDefaultScene,
+	getProjectDurationFromScenes,
+} from "@/timeline/scenes";
 import { buildScene } from "@/services/renderer/scene-builder";
 import { CanvasRenderer } from "@/services/renderer/canvas-renderer";
 import {
@@ -102,9 +106,12 @@ export class ProjectManager {
 					color: DEFAULT_BACKGROUND_COLOR,
 				},
 			},
+			revision: 0,
 			version: CURRENT_PROJECT_VERSION,
 		};
 
+		this.editor.command.clear();
+		this.editor.editorAdapter.clearTransactions();
 		this.active = newProject;
 		this.notify();
 
@@ -131,6 +138,8 @@ export class ProjectManager {
 			this.notify();
 		}
 
+		this.editor.command.clear();
+		this.editor.editorAdapter.clearTransactions();
 		this.editor.save.pause();
 		await this.ensureStorageMigrations();
 		this.editor.media.clearAllAssets();
@@ -296,6 +305,8 @@ export class ProjectManager {
 				this.active && idSet.has(this.active.metadata.id);
 
 			if (shouldClearActive) {
+				this.editor.command.clear();
+				this.editor.editorAdapter.clearTransactions();
 				this.active = null;
 				this.editor.media.clearAllAssets();
 				this.editor.scenes.clearScenes();
@@ -308,6 +319,8 @@ export class ProjectManager {
 	}
 
 	closeProject(): void {
+		this.editor.command.clear();
+		this.editor.editorAdapter.clearTransactions();
 		this.active = null;
 		this.notify();
 
@@ -429,6 +442,7 @@ export class ProjectManager {
 				const newProjectId = generateUUID();
 				const newProject: TProject = {
 					...project,
+					revision: 0,
 					metadata: {
 						...project.metadata,
 						id: newProjectId,
@@ -605,6 +619,49 @@ export class ProjectManager {
 	 */
 	getActiveOrNull(): TProject | null {
 		return this.active;
+	}
+
+	getEditableState(): EditableProjectState {
+		const activeProject = this.getActive();
+		return {
+			scenes: this.editor.scenes.getScenes(),
+			currentSceneId: activeProject.currentSceneId,
+			settings: activeProject.settings,
+			revision: activeProject.revision,
+		};
+	}
+
+	replaceEditableState({ state }: { state: EditableProjectState }): void {
+		const activeProject = this.getActive();
+		if (!Number.isSafeInteger(state.revision) || state.revision < 0) {
+			throw new Error("Project revision must be a non-negative safe integer");
+		}
+		if (state.scenes.length === 0) {
+			throw new Error("Project editable state must contain at least one scene");
+		}
+		if (!state.scenes.some((scene) => scene.id === state.currentSceneId)) {
+			throw new Error("Current scene must exist in project editable state");
+		}
+
+		const updatedProject: TProject = {
+			...activeProject,
+			...state,
+			metadata: {
+				...activeProject.metadata,
+				duration: getProjectDurationFromScenes({ scenes: state.scenes }),
+				updatedAt: new Date(),
+			},
+		};
+
+		// Publish the complete project state before notifying scene subscribers so
+		// every observer sees one coherent project/timeline snapshot.
+		this.active = updatedProject;
+		this.editor.scenes.replaceScenesFromProject({
+			scenes: state.scenes,
+			currentSceneId: state.currentSceneId,
+		});
+		this.notify();
+		this.editor.save.markDirty();
 	}
 
 	getTimelineViewState(): TTimelineViewState {
