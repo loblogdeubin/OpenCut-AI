@@ -42,7 +42,8 @@ jobs:
 
       - name: Install JavaScript dependencies
         shell: pwsh
-        run: bun install --frozen-lockfile
+        # Bun lockfiles may gain Windows-specific optional dependency metadata.
+        run: bun install
 
       - name: Build and link local WASM
         shell: pwsh
