@@ -10,7 +10,7 @@ on:
       release_tag:
         description: Existing or new GitHub release tag
         required: true
-        default: windows-v0.1.0
+        default: windows-v0.1.1
         type: string
 
 permissions:
@@ -32,8 +32,8 @@ jobs:
 
       - name: Verify executables
         run: |
-          test -f release/OpenCut-AI-Setup-0.1.0-x64.exe
-          test -f release/OpenCut-AI-Portable-0.1.0-x64.exe
+          test -n "$(find release -maxdepth 1 -name 'OpenCut-AI-Setup-*-x64.exe' -print -quit)"
+          test -n "$(find release -maxdepth 1 -name 'OpenCut-AI-Portable-*-x64.exe' -print -quit)"
           sha256sum release/*.exe | tee release/SHA256SUMS.txt
 
       - name: Publish permanent GitHub release
@@ -41,5 +41,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
-          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || gh release create "$RELEASE_TAG" --title "OpenCut AI Windows v0.1.0" --generate-notes
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || gh release create "$RELEASE_TAG" --title "OpenCut AI Windows ${RELEASE_TAG#windows-v}" --generate-notes
           gh release upload "$RELEASE_TAG" release/*.exe release/SHA256SUMS.txt --clobber

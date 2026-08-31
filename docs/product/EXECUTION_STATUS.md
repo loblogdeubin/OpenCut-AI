@@ -1,7 +1,7 @@
 # Execution Status — OpenCut AI
 
-**Updated:** 30 Agustus 2026  
-**Milestone:** 2C — Windows desktop release pipeline prepared  
+**Updated:** 31 Agustus 2026
+**Milestone:** 2D — Windows release published and ChatGPT Plus handoff guided
 **Workspace:** `/Users/loblogdeubin/Documents/OpenCut-AI`  
 **Branch:** `codex/ai-rough-cut-mvp`  
 **Upstream baseline:** `OpenCut-app/opencut-classic@cf5e79e9`
@@ -78,6 +78,8 @@
 - Added the `Windows Desktop Release` workflow, producing assisted NSIS and portable Windows x64 executables and optionally publishing tagged GitHub Releases.
 - Verified the staged desktop package locally: Electron launched the bundled server, `/projects` returned 200, health returned OK, AI preflight returned ready, and the child server stopped with the app.
 - Reduced desktop staging size from an accidental 10 GB dependency capture to 594 MB uncompressed by excluding workspace `node_modules`.
+- Built both Windows x64 targets on a real GitHub-hosted Windows runner and published the permanent `windows-v0.1.0` release with SHA-256 checksums.
+- Added a guided, no-API ChatGPT Plus handoff: readiness checks, one-click contact-sheet download plus context copy plus ChatGPT launch, and clipboard paste plus authoritative validation before Apply.
 
 ## Current local URLs
 
@@ -117,7 +119,8 @@ npx --yes bun@1.2.18 run dev:web
 - local or remote MCP server;
 - automatic ChatGPT/API/MCP pairing (the implemented Plus bridge currently has one manual copy/paste step);
 - automatic semantic take selection without the manual ChatGPT bridge, captions, and audio ducking;
-- first Windows-runner installer build and public download publication; the pipeline is prepared locally but has not yet been pushed to a user-owned GitHub repository.
+- Windows Authenticode code-signing and SmartScreen reputation;
+- a real Windows restart/persistence smoke test on user hardware.
 
 ## Next execution slice
 

@@ -74,6 +74,8 @@ export function AiPromptPanel() {
 	const [visualStrips, setVisualStrips] = useState<VisualKeyframeStrip[]>([]);
 	const [isExtractingVisuals, setIsExtractingVisuals] = useState(false);
 	const [visualProgress, setVisualProgress] = useState(0);
+	const [isPreparingHandoff, setIsPreparingHandoff] = useState(false);
+	const [bridgePackageCopied, setBridgePackageCopied] = useState(false);
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -128,6 +130,7 @@ export function AiPromptPanel() {
 		}
 		setIsTranscribing(true);
 		setError(null);
+		setBridgePackageCopied(false);
 		setTranscripts([]);
 		setTranscriptionProgress(0);
 		try {
@@ -156,8 +159,10 @@ export function AiPromptPanel() {
 		}
 	};
 
-	const copyChatGptPackage = async () => {
-		if (transcripts.length === 0) return;
+	const copyChatGptPackage = async ({
+		notify = true,
+	}: { notify?: boolean } = {}) => {
+		if (transcripts.length === 0) return false;
 		try {
 			await navigator.clipboard.writeText(
 				buildChatGptBridgePackage({
@@ -167,14 +172,19 @@ export function AiPromptPanel() {
 					visualKeyframes: visualStrips,
 				}),
 			);
-			toast.success("Paket prompt disalin", {
-				description:
-					"Unggah contact sheet, tempel paket ini, lalu salin JSON jawabannya.",
-			});
+			setBridgePackageCopied(true);
+			if (notify) {
+				toast.success("Paket prompt disalin", {
+					description:
+						"Unggah contact sheet, tempel paket ini, lalu salin JSON jawabannya.",
+				});
+			}
+			return true;
 		} catch {
 			setError(
 				"Browser tidak mengizinkan akses clipboard. Coba lagi dari tab aktif.",
 			);
+			return false;
 		}
 	};
 
@@ -189,6 +199,7 @@ export function AiPromptPanel() {
 		setIsExtractingVisuals(true);
 		setVisualProgress(0);
 		setError(null);
+		setBridgePackageCopied(false);
 		const completed: VisualKeyframeStrip[] = [];
 		try {
 			for (const [index, asset] of videos.entries()) {
@@ -214,7 +225,9 @@ export function AiPromptPanel() {
 		}
 	};
 
-	const downloadVisualContactSheet = async () => {
+	const downloadVisualContactSheet = async ({
+		notify = true,
+	}: { notify?: boolean } = {}) => {
 		try {
 			const sheet = await buildVisualContactSheet(visualStrips);
 			const url = URL.createObjectURL(sheet);
@@ -223,29 +236,74 @@ export function AiPromptPanel() {
 			link.download = "opencut-chatgpt-contact-sheet.jpg";
 			link.click();
 			setTimeout(() => URL.revokeObjectURL(url), 1_000);
-			toast.success("Contact sheet diunduh");
+			if (notify) toast.success("Contact sheet diunduh");
+			return true;
 		} catch (cause) {
 			setError(
 				cause instanceof Error ? cause.message : "Gagal membuat contact sheet.",
 			);
+			return false;
 		}
+	};
+
+	const prepareChatGptHandoff = async () => {
+		if (transcripts.length === 0 || visualStrips.length === 0) return;
+		setIsPreparingHandoff(true);
+		setError(null);
+		// Open synchronously from the user gesture so browsers do not block the tab.
+		window.open("https://chatgpt.com/", "_blank", "noopener,noreferrer");
+		try {
+			const downloaded = await downloadVisualContactSheet({ notify: false });
+			if (!downloaded) return;
+			const copied = await copyChatGptPackage({ notify: false });
+			if (!copied) return;
+			toast.success("Handoff ChatGPT Plus siap", {
+				description:
+					"Unggah contact sheet yang baru diunduh, lalu tempel paket dari clipboard.",
+			});
+		} finally {
+			setIsPreparingHandoff(false);
+		}
+	};
+
+	const validateBridgePlanInput = (input: string) => {
+		const plan = parseChatGptEditPlan(input);
+		const validation = editor.editorAdapter.validatePlan({ plan });
+		if (!validation.valid) {
+			throw new Error(
+				validation.errors.map(({ message }) => message).join("; "),
+			);
+		}
+		setBridgePlan(plan);
+		setError(null);
+		return plan;
 	};
 
 	const validateBridgePlan = () => {
 		try {
-			const plan = parseChatGptEditPlan(bridgeJson);
-			const validation = editor.editorAdapter.validatePlan({ plan });
-			if (!validation.valid) {
-				throw new Error(
-					validation.errors.map(({ message }) => message).join("; "),
-				);
-			}
-			setBridgePlan(plan);
-			setError(null);
+			validateBridgePlanInput(bridgeJson);
 		} catch (cause) {
 			setBridgePlan(null);
 			setError(
 				cause instanceof Error ? cause.message : "EditPlan tidak valid.",
+			);
+		}
+	};
+
+	const pasteAndValidateBridgePlan = async () => {
+		try {
+			const clipboardText = await navigator.clipboard.readText();
+			setBridgeJson(clipboardText);
+			const plan = validateBridgePlanInput(clipboardText);
+			toast.success("EditPlan ditempel dan valid", {
+				description: `${plan.operations.length} operasi siap ditinjau sebelum Apply.`,
+			});
+		} catch (cause) {
+			setBridgePlan(null);
+			setError(
+				cause instanceof Error
+					? cause.message
+					: "Clipboard tidak berisi EditPlan yang valid.",
 			);
 		}
 	};
@@ -353,7 +411,10 @@ export function AiPromptPanel() {
 
 				<Textarea
 					value={prompt}
-					onChange={(event) => setPrompt(event.target.value)}
+					onChange={(event) => {
+						setPrompt(event.target.value);
+						setBridgePackageCopied(false);
+					}}
 					placeholder="Gabungkan footage, hapus bagian diam, maksimal 60 detik..."
 					className="min-h-28 bg-background"
 					disabled={isPlanning || isApplying}
@@ -442,6 +503,29 @@ export function AiPromptPanel() {
 						ke ChatGPT Plus. Footage mentah tidak ikut dikirim. Tempel kembali
 						JSON EditPlan untuk divalidasi sebelum timeline berubah.
 					</p>
+					<div className="grid grid-cols-3 gap-1.5">
+						<HandoffStatus label="Prompt" ready={prompt.trim().length > 0} />
+						<HandoffStatus label="Transkrip" ready={transcripts.length > 0} />
+						<HandoffStatus label="Visual" ready={visualStrips.length > 0} />
+					</div>
+					<Button
+						className="w-full"
+						disabled={
+							!prompt.trim() ||
+							transcripts.length === 0 ||
+							visualStrips.length === 0 ||
+							isPreparingHandoff ||
+							isTranscribing ||
+							isExtractingVisuals ||
+							isApplying
+						}
+						onClick={() => void prepareChatGptHandoff()}
+					>
+						{isPreparingHandoff && <Spinner />}
+						{isPreparingHandoff
+							? "Menyiapkan handoff..."
+							: "Download, copy & buka ChatGPT"}
+					</Button>
 					<Button
 						variant="outline"
 						className="w-full"
@@ -453,7 +537,9 @@ export function AiPromptPanel() {
 						}
 						onClick={() => void copyChatGptPackage()}
 					>
-						Copy package untuk ChatGPT
+						{bridgePackageCopied
+							? "Package sudah disalin"
+							: "Copy package saja"}
 					</Button>
 					{transcripts.length === 0 && (
 						<p className="text-muted-foreground text-xs">
@@ -470,6 +556,14 @@ export function AiPromptPanel() {
 						className="min-h-32 bg-background font-mono text-xs"
 						disabled={isApplying}
 					/>
+					<Button
+						variant="outline"
+						className="w-full"
+						disabled={isApplying}
+						onClick={() => void pasteAndValidateBridgePlan()}
+					>
+						Paste clipboard & validasi
+					</Button>
 					{bridgePlan ? (
 						<div className="space-y-2">
 							<p className="text-xs font-medium">
@@ -610,6 +704,20 @@ function Summary({ label, value }: { label: string; value: string }) {
 		<div className="bg-accent/50 rounded-md p-2">
 			<div className="text-muted-foreground">{label}</div>
 			<div className="mt-0.5 font-medium">{value}</div>
+		</div>
+	);
+}
+
+function HandoffStatus({ label, ready }: { label: string; ready: boolean }) {
+	return (
+		<div
+			className={`rounded-md border px-2 py-1.5 text-center text-[11px] ${
+				ready
+					? "border-primary/30 bg-primary/5 text-primary"
+					: "text-muted-foreground"
+			}`}
+		>
+			{ready ? "✓" : "○"} {label}
 		</div>
 	);
 }
