@@ -1,7 +1,7 @@
 # Execution Status — OpenCut AI
 
 **Updated:** 31 Agustus 2026
-**Milestone:** 2D — Windows release published and ChatGPT Plus handoff guided
+**Milestone:** 2E — Local auto-subtitle workflow implemented
 **Workspace:** `/Users/loblogdeubin/Documents/OpenCut-AI`  
 **Branch:** `codex/ai-rough-cut-mvp`  
 **Upstream baseline:** `OpenCut-app/opencut-classic@cf5e79e9`
@@ -80,6 +80,9 @@
 - Reduced desktop staging size from an accidental 10 GB dependency capture to 594 MB uncompressed by excluding workspace `node_modules`.
 - Built both Windows x64 targets on a real GitHub-hosted Windows runner and published the permanent `windows-v0.1.0` release with SHA-256 checksums.
 - Added a guided, no-API ChatGPT Plus handoff: readiness checks, one-click contact-sheet download plus context copy plus ChatGPT launch, and clipboard paste plus authoritative validation before Apply.
+- Upgraded the Captions panel into a local auto-subtitle workflow that extracts the current timeline audio, prefers the bundled Whisper engine, falls back to the browser transcription engine, and inserts timestamped editable text elements as one track.
+- Added live subtitle counts, normal timeline/property-panel correction of generated text and style, and `.srt` export that reflects current caption text and timing from the timeline.
+- Added strict local-transcription response validation plus SRT serialization/round-trip coverage; the complete suite now passes with 241 tests, 0 failures, and 508 assertions across 40 files, followed by a clean production build.
 
 ## Current local URLs
 
@@ -118,7 +121,7 @@ npx --yes bun@1.2.18 run dev:web
 - resumable background indexing, proxies, and transcription;
 - local or remote MCP server;
 - automatic ChatGPT/API/MCP pairing (the implemented Plus bridge currently has one manual copy/paste step);
-- automatic semantic take selection without the manual ChatGPT bridge, captions, and audio ducking;
+- automatic semantic take selection without the manual ChatGPT bridge and audio ducking;
 - Windows Authenticode code-signing and SmartScreen reputation;
 - a real Windows restart/persistence smoke test on user hardware.
 

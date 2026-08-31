@@ -7,7 +7,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { useReducer, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { extractTimelineAudio } from "@/media/mediabunny";
 import { useEditor } from "@/editor/use-editor";
 import { TRANSCRIPTION_DIAGNOSTICS_SCOPE } from "@/transcription/diagnostics";
@@ -17,12 +17,15 @@ import type {
 	CaptionChunk,
 	TranscriptionLanguage,
 	TranscriptionProgress,
+	TranscriptionResult,
 } from "@/transcription/types";
 import { transcriptionService } from "@/services/transcription/service";
 import { decodeAudioToFloat32 } from "@/media/audio";
 import { buildCaptionChunks } from "@/transcription/caption";
 import { insertCaptionChunksAsTextTrack } from "@/subtitles/insert";
 import { parseSubtitleFile } from "@/subtitles/parse";
+import { serializeSrt } from "@/subtitles/srt";
+import type { SubtitleCue } from "@/subtitles/types";
 import { Spinner } from "@/components/ui/spinner";
 import {
 	Section,
@@ -30,7 +33,11 @@ import {
 	SectionField,
 	SectionFields,
 } from "@/components/section";
-import { AlertCircleIcon, CloudUploadIcon } from "@hugeicons/core-free-icons";
+import {
+	AlertCircleIcon,
+	CloudUploadIcon,
+	Download01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
 	Tooltip,
@@ -39,6 +46,11 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { DiagnosticSeverity } from "@/diagnostics/types";
+import { transcribeMediaLocally } from "@/local-ai/transcribe";
+import { downloadBlob } from "@/utils/browser";
+import { mediaTimeToSeconds } from "@/wasm";
+import { toast } from "sonner";
+import type { SceneTracks } from "@/timeline";
 
 const DIAGNOSTIC_BUTTON_VARIANT: Record<
 	DiagnosticSeverity,
@@ -90,12 +102,35 @@ export function Captions() {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const editor = useEditor();
+	const [localTranscriptionAvailable, setLocalTranscriptionAvailable] =
+		useState<boolean | null>(null);
+	const activeSceneTracks = useEditor(
+		(current) => current.scenes.getActiveSceneOrNull()?.tracks ?? null,
+	);
+	const exportableCaptions = useMemo(
+		() => collectTimelineCaptions({ tracks: activeSceneTracks }),
+		[activeSceneTracks],
+	);
 
 	const isProcessing = processing.status === "processing";
 
 	const activeDiagnostics = useEditor((e) =>
 		e.diagnostics.getActive({ scope: TRANSCRIPTION_DIAGNOSTICS_SCOPE }),
 	);
+
+	useEffect(() => {
+		const controller = new AbortController();
+		void fetch("/api/local-ai/preflight", { signal: controller.signal })
+			.then(async (response) => {
+				if (!response.ok) return;
+				const result: unknown = await response.json();
+				setLocalTranscriptionAvailable(
+					hasLocalTranscription({ value: result }),
+				);
+			})
+			.catch(() => undefined);
+		return () => controller.abort();
+	}, []);
 
 	const handleProgress = (progress: TranscriptionProgress) => {
 		if (progress.status === "loading-model") {
@@ -112,9 +147,8 @@ export function Captions() {
 		captions,
 	}: {
 		captions: CaptionChunk[];
-	}): boolean => {
-		const trackId = insertCaptionChunksAsTextTrack({ editor, captions });
-		return trackId !== null;
+	}): string | null => {
+		return insertCaptionChunksAsTextTrack({ editor, captions });
 	};
 
 	const handleGenerateTranscript = async () => {
@@ -126,17 +160,29 @@ export function Captions() {
 				totalDuration: editor.timeline.getTotalDuration(),
 			});
 
-			dispatch({ type: "update_step", step: "Preparing audio..." });
-			const { samples } = await decodeAudioToFloat32({
-				audioBlob,
-				sampleRate: DEFAULT_TRANSCRIPTION_SAMPLE_RATE,
-			});
+			let result: TranscriptionResult;
+			if (localTranscriptionAvailable) {
+				dispatch({
+					type: "update_step",
+					step: "Transcribing locally with Whisper...",
+				});
+				result = await transcribeMediaLocally({
+					file: audioBlob,
+					language: selectedLanguage,
+				});
+			} else {
+				dispatch({ type: "update_step", step: "Preparing audio..." });
+				const { samples } = await decodeAudioToFloat32({
+					audioBlob,
+					sampleRate: DEFAULT_TRANSCRIPTION_SAMPLE_RATE,
+				});
 
-			const result = await transcriptionService.transcribe({
-				audioData: samples,
-				language: selectedLanguage === "auto" ? undefined : selectedLanguage,
-				onProgress: handleProgress,
-			});
+				result = await transcriptionService.transcribe({
+					audioData: samples,
+					language: selectedLanguage === "auto" ? undefined : selectedLanguage,
+					onProgress: handleProgress,
+				});
+			}
 
 			dispatch({ type: "update_step", step: "Generating captions..." });
 			const captionChunks = buildCaptionChunks({ segments: result.segments });
@@ -147,6 +193,10 @@ export function Captions() {
 			}
 
 			dispatch({ type: "succeed", warnings: [] });
+			toast.success(`${captionChunks.length} subtitle dibuat`, {
+				description:
+					"Klik subtitle di timeline untuk mengoreksi teks atau mengubah tampilannya.",
+			});
 		} catch (error) {
 			console.error("Transcription failed:", error);
 			dispatch({
@@ -195,6 +245,7 @@ export function Captions() {
 			}
 
 			dispatch({ type: "succeed", warnings: nextWarnings });
+			toast.success(`${result.captions.length} subtitle diimpor`);
 		} catch (error) {
 			console.error("Subtitle import failed:", error);
 			dispatch({
@@ -234,12 +285,22 @@ export function Captions() {
 		setSelectedLanguage(matchedLanguage.code);
 	};
 
+	const handleDownloadSrt = () => {
+		if (exportableCaptions.length === 0) return;
+		const srt = serializeSrt({ captions: exportableCaptions });
+		downloadBlob({
+			blob: new Blob([srt], { type: "application/x-subrip;charset=utf-8" }),
+			filename: "opencut-subtitles.srt",
+		});
+		toast.success("Subtitle SRT diunduh");
+	};
+
 	const error = processing.status === "idle" ? processing.error : null;
 	const warnings = processing.status === "idle" ? processing.warnings : [];
 
 	return (
 		<PanelView
-			title="Captions"
+			title="Auto Subtitle"
 			contentClassName="px-0 flex flex-col h-full"
 			actions={
 				<TooltipProvider>
@@ -270,6 +331,17 @@ export function Captions() {
 							<HugeiconsIcon icon={CloudUploadIcon} />
 							Import
 						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={handleDownloadSrt}
+							disabled={isProcessing || exportableCaptions.length === 0}
+							className="items-center justify-center gap-1.5"
+						>
+							<HugeiconsIcon icon={Download01Icon} />
+							SRT
+						</Button>
 					</div>
 				</TooltipProvider>
 			}
@@ -288,6 +360,19 @@ export function Captions() {
 				className="flex-1"
 			>
 				<SectionContent className="flex flex-col gap-4 h-full pt-1">
+					<div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+						<p className="font-medium text-foreground">
+							{localTranscriptionAvailable === null
+								? "Mengecek mesin transkripsi..."
+								: localTranscriptionAvailable
+									? "Whisper lokal siap"
+									: "Transkripsi browser"}
+						</p>
+						<p className="mt-1">
+							Audio timeline ditranskripsi, dipecah menurut timestamp, lalu
+							ditambahkan sebagai text track yang bisa diedit.
+						</p>
+					</div>
 					<SectionFields>
 						<SectionField label="Language">
 							<Select
@@ -316,8 +401,14 @@ export function Captions() {
 						disabled={isProcessing || activeDiagnostics.length > 0}
 					>
 						{isProcessing && <Spinner className="mr-1" />}
-						{isProcessing ? processing.step : "Generate transcript"}
+						{isProcessing ? processing.step : "Buat auto subtitle"}
 					</Button>
+					{exportableCaptions.length > 0 && (
+						<p className="text-center text-xs text-muted-foreground">
+							{exportableCaptions.length} subtitle ada di timeline. Pilih satu
+							subtitle untuk mengedit teks, posisi, warna, dan font.
+						</p>
+					)}
 					{error && (
 						<div className="bg-destructive/10 border-destructive/20 rounded-md border p-3">
 							<p className="text-destructive text-sm">{error}</p>
@@ -335,5 +426,39 @@ export function Captions() {
 				</SectionContent>
 			</Section>
 		</PanelView>
+	);
+}
+
+function collectTimelineCaptions({
+	tracks,
+}: {
+	tracks: SceneTracks | null;
+}): SubtitleCue[] {
+	if (!tracks) return [];
+	return tracks.overlay
+		.filter((track) => track.type === "text")
+		.flatMap((track) => track.elements)
+		.filter((element) => /^Caption \d+$/.test(element.name))
+		.flatMap((element) => {
+			const content = element.params.content;
+			if (typeof content !== "string" || content.trim().length === 0) return [];
+			return [
+				{
+					text: content,
+					startTime: mediaTimeToSeconds({ time: element.startTime }),
+					duration: mediaTimeToSeconds({ time: element.duration }),
+				},
+			];
+		});
+}
+
+function hasLocalTranscription({ value }: { value: unknown }): boolean {
+	if (typeof value !== "object" || value === null) return false;
+	return (
+		"transcription" in value &&
+		typeof value.transcription === "object" &&
+		value.transcription !== null &&
+		"available" in value.transcription &&
+		value.transcription.available === true
 	);
 }

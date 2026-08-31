@@ -96,3 +96,38 @@ function parseSrtTimestamp({ input }: { input: string }): number {
 		parsedMilliseconds / 1000
 	);
 }
+
+export function serializeSrt({
+	captions,
+}: {
+	captions: SubtitleCue[];
+}): string {
+	return captions
+		.filter(
+			(caption) =>
+				caption.text.trim().length > 0 &&
+				Number.isFinite(caption.startTime) &&
+				Number.isFinite(caption.duration) &&
+				caption.duration > 0,
+		)
+		.toSorted((left, right) => left.startTime - right.startTime)
+		.map((caption, index) => {
+			const startTime = Math.max(0, caption.startTime);
+			const endTime = Math.max(startTime, startTime + caption.duration);
+			const text = caption.text.replace(/\r\n?/g, "\n").trim();
+			return `${index + 1}\n${formatSrtTimestamp({ seconds: startTime })} --> ${formatSrtTimestamp({ seconds: endTime })}\n${text}`;
+		})
+		.join("\n\n");
+}
+
+function formatSrtTimestamp({ seconds }: { seconds: number }): string {
+	const totalMilliseconds = Math.max(0, Math.round(seconds * 1000));
+	const milliseconds = totalMilliseconds % 1000;
+	const totalSeconds = Math.floor(totalMilliseconds / 1000);
+	const wholeSeconds = totalSeconds % 60;
+	const totalMinutes = Math.floor(totalSeconds / 60);
+	const minutes = totalMinutes % 60;
+	const hours = Math.floor(totalMinutes / 60);
+
+	return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(wholeSeconds).padStart(2, "0")},${String(milliseconds).padStart(3, "0")}`;
+}
