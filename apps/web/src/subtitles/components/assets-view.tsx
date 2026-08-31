@@ -27,6 +27,7 @@ import { parseSubtitleFile } from "@/subtitles/parse";
 import { serializeSrt } from "@/subtitles/srt";
 import type { SubtitleCue } from "@/subtitles/types";
 import { Spinner } from "@/components/ui/spinner";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Section,
 	SectionContent,
@@ -51,6 +52,9 @@ import { downloadBlob } from "@/utils/browser";
 import { mediaTimeToSeconds } from "@/wasm";
 import { toast } from "sonner";
 import type { SceneTracks } from "@/timeline";
+import { translationService } from "@/services/translation/service";
+import { applySegmentTranslations } from "@/translation/segments";
+import type { TranslationProgress } from "@/translation/types";
 
 const DIAGNOSTIC_BUTTON_VARIANT: Record<
 	DiagnosticSeverity,
@@ -98,6 +102,7 @@ function processingReducer(
 export function Captions() {
 	const [selectedLanguage, setSelectedLanguage] =
 		useState<TranscriptionLanguage>("auto");
+	const [translateToIndonesian, setTranslateToIndonesian] = useState(false);
 	const [processing, dispatch] = useReducer(processingReducer, IDLE_STATE);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -143,6 +148,10 @@ export function Captions() {
 		}
 	};
 
+	const handleTranslationProgress = (progress: TranslationProgress) => {
+		dispatch({ type: "update_step", step: progress.message });
+	};
+
 	const insertCaptions = ({
 		captions,
 	}: {
@@ -184,8 +193,25 @@ export function Captions() {
 				});
 			}
 
+			let captionSegments = result.segments;
+			if (translateToIndonesian) {
+				dispatch({
+					type: "update_step",
+					step: "Menyiapkan terjemahan Indonesia...",
+				});
+				const translations =
+					await translationService.translateEnglishToIndonesian({
+						texts: captionSegments.map((segment) => segment.text),
+						onProgress: handleTranslationProgress,
+					});
+				captionSegments = applySegmentTranslations({
+					segments: captionSegments,
+					translations,
+				});
+			}
+
 			dispatch({ type: "update_step", step: "Generating captions..." });
-			const captionChunks = buildCaptionChunks({ segments: result.segments });
+			const captionChunks = buildCaptionChunks({ segments: captionSegments });
 
 			if (!insertCaptions({ captions: captionChunks })) {
 				dispatch({ type: "fail", error: "No captions were generated" });
@@ -194,8 +220,9 @@ export function Captions() {
 
 			dispatch({ type: "succeed", warnings: [] });
 			toast.success(`${captionChunks.length} subtitle dibuat`, {
-				description:
-					"Klik subtitle di timeline untuk mengoreksi teks atau mengubah tampilannya.",
+				description: translateToIndonesian
+					? "Ucapan Inggris diterjemahkan ke Indonesia. Klik subtitle untuk mengoreksi hasilnya."
+					: "Klik subtitle di timeline untuk mengoreksi teks atau mengubah tampilannya.",
 			});
 		} catch (error) {
 			console.error("Transcription failed:", error);
@@ -283,6 +310,11 @@ export function Captions() {
 		);
 		if (!matchedLanguage) return;
 		setSelectedLanguage(matchedLanguage.code);
+	};
+
+	const handleTranslationChange = ({ checked }: { checked: boolean }) => {
+		setTranslateToIndonesian(checked);
+		if (checked) setSelectedLanguage("en");
 	};
 
 	const handleDownloadSrt = () => {
@@ -378,6 +410,7 @@ export function Captions() {
 							<Select
 								value={selectedLanguage}
 								onValueChange={(value) => handleLanguageChange({ value })}
+								disabled={translateToIndonesian}
 							>
 								<SelectTrigger>
 									<SelectValue placeholder="Select a language" />
@@ -391,6 +424,29 @@ export function Captions() {
 									))}
 								</SelectContent>
 							</Select>
+						</SectionField>
+						<SectionField label="Terjemahan">
+							<div className="flex items-start gap-2 rounded-md border p-3">
+								<Checkbox
+									id="translate-to-indonesian"
+									checked={translateToIndonesian}
+									onCheckedChange={(checked) =>
+										handleTranslationChange({ checked: checked === true })
+									}
+									disabled={isProcessing}
+								/>
+								<label
+									htmlFor="translate-to-indonesian"
+									className="cursor-pointer text-xs leading-snug"
+								>
+									<span className="block font-medium text-foreground">
+										English → Indonesia
+									</span>
+									<span className="text-muted-foreground">
+										Model lokal diunduh sekali saat pertama digunakan.
+									</span>
+								</label>
+							</div>
 						</SectionField>
 					</SectionFields>
 

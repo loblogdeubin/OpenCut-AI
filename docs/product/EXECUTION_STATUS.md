@@ -1,7 +1,7 @@
 # Execution Status — OpenCut AI
 
 **Updated:** 31 Agustus 2026
-**Milestone:** 2E — Local auto-subtitle workflow implemented
+**Milestone:** 2F — Local English-to-Indonesian subtitle translation implemented
 **Workspace:** `/Users/loblogdeubin/Documents/OpenCut-AI`  
 **Branch:** `codex/ai-rough-cut-mvp`  
 **Upstream baseline:** `OpenCut-app/opencut-classic@cf5e79e9`
@@ -83,6 +83,9 @@
 - Upgraded the Captions panel into a local auto-subtitle workflow that extracts the current timeline audio, prefers the bundled Whisper engine, falls back to the browser transcription engine, and inserts timestamped editable text elements as one track.
 - Added live subtitle counts, normal timeline/property-panel correction of generated text and style, and `.srt` export that reflects current caption text and timing from the timeline.
 - Added strict local-transcription response validation plus SRT serialization/round-trip coverage; the complete suite now passes with 241 tests, 0 failures, and 508 assertions across 40 files, followed by a clean production build.
+- Added an optional `English → Indonesia` mode to Auto Subtitle: Whisper is locked to English, each timestamped segment is translated locally with the quantized `Xenova/opus-mt-en-id` model, and the Indonesian result retains the source timing before becoming editable timeline text.
+- Added first-run model-download and per-segment translation progress, strict empty/count validation, and a focused timing-preservation test.
+- Verified a real local inference (`Hello, welcome to our video.` → `Halo, selamat datang di video kami.`), then passed the complete suite with 243 tests, 0 failures, and 511 assertions across 41 files plus a clean production build.
 
 ## Current local URLs
 
@@ -110,6 +113,7 @@ npx --yes bun@1.2.18 run dev:web
 - Bun is invoked through `npx` because global installation under `/usr/local` requires permissions unavailable to the current user.
 - Docker is not installed. It is optional for the editor baseline but will be required if local PostgreSQL/Redis-backed features are activated.
 - FFmpeg, ffprobe, whisper.cpp, and the base multilingual model are installed locally. Automatic per-asset proxy/transcript job orchestration is the remaining integration step.
+- English-to-Indonesian subtitle translation is API-free, but the approximately 255 MB quantized translation model requires internet on first use and is then kept in the browser model cache.
 - Available disk space is approximately 11 GB after Rust/WASM compilation. This remains tight for large footage or proxy caches; keep free-space usage under observation during media indexing.
 - Next.js reports a non-blocking workspace-root warning because a separate `/Users/loblogdeubin/package-lock.json` exists above the project.
 - The development server requests `/service-worker.js`, which currently returns 404; this did not block the editor.
