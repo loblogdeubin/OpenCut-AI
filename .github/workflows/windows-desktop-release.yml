@@ -54,8 +54,19 @@ jobs:
         run: |
           choco install ffmpeg -y --no-progress
           New-Item -ItemType Directory -Force apps/windows/vendor/ai/bin | Out-Null
-          Copy-Item (Get-Command ffmpeg.exe).Source apps/windows/vendor/ai/bin/ffmpeg.exe
-          Copy-Item (Get-Command ffprobe.exe).Source apps/windows/vendor/ai/bin/ffprobe.exe
+          $ffmpegRoot = Join-Path $env:ChocolateyInstall "lib/ffmpeg/tools"
+          $ffmpeg = Get-ChildItem $ffmpegRoot -Recurse -File -Filter ffmpeg.exe |
+            Where-Object Length -GT 1MB |
+            Select-Object -First 1
+          $ffprobe = Get-ChildItem $ffmpegRoot -Recurse -File -Filter ffprobe.exe |
+            Where-Object Length -GT 1MB |
+            Select-Object -First 1
+          if (-not $ffmpeg -or -not $ffprobe) {
+            throw "Binary FFmpeg asli tidak ditemukan di $ffmpegRoot"
+          }
+          Copy-Item $ffmpeg.FullName apps/windows/vendor/ai/bin/ffmpeg.exe
+          Copy-Item $ffprobe.FullName apps/windows/vendor/ai/bin/ffprobe.exe
+          & apps/windows/vendor/ai/bin/ffmpeg.exe -version
 
       - name: Build bundled whisper.cpp
         shell: pwsh
@@ -64,6 +75,7 @@ jobs:
           cmake -S build/whisper.cpp -B build/whisper.cpp-build -A x64 -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_SERVER=OFF -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF
           cmake --build build/whisper.cpp-build --config Release --target whisper-cli
           Copy-Item build/whisper.cpp-build/bin/Release/* apps/windows/vendor/ai/bin/ -Recurse -Force
+          & apps/windows/vendor/ai/bin/whisper-cli.exe --version
 
       - name: Download multilingual Whisper model
         shell: pwsh

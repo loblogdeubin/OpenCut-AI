@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { access } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { NextResponse } from "next/server";
@@ -32,6 +33,14 @@ async function commandVersion({
 }
 
 async function commandPath(command: string): Promise<string | undefined> {
+	if (path.isAbsolute(command)) {
+		try {
+			await access(command);
+			return command;
+		} catch {
+			return undefined;
+		}
+	}
 	try {
 		const locator = process.platform === "win32" ? "where.exe" : "which";
 		const { stdout } = await execFileAsync(locator, [command], {
