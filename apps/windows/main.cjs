@@ -1,12 +1,14 @@
 const { app, BrowserWindow, dialog, shell } = require("electron");
 const { spawn } = require("node:child_process");
 const crypto = require("node:crypto");
+const fs = require("node:fs");
 const http = require("node:http");
 const net = require("node:net");
 const path = require("node:path");
 
 let mainWindow;
 let serverProcess;
+let serverLogHandle;
 
 app.setAppUserModelId("com.opencut.ai");
 
@@ -58,6 +60,13 @@ async function startLocalServer() {
 	const serverRoot = path.join(process.resourcesPath, "server");
 	const serverEntry = path.join(serverRoot, "apps", "web", "server.js");
 	const aiRoot = path.join(process.resourcesPath, "ai");
+	const logPath = path.join(app.getPath("logs"), "server.log");
+	fs.mkdirSync(path.dirname(logPath), { recursive: true });
+	serverLogHandle = fs.openSync(logPath, "a");
+	fs.writeSync(
+		serverLogHandle,
+		`\n[${new Date().toISOString()}] Memulai server OpenCut AI\n`,
+	);
 	serverProcess = spawn(process.execPath, [serverEntry], {
 		cwd: path.dirname(serverEntry),
 		env: {
@@ -78,14 +87,18 @@ async function startLocalServer() {
 			OPENCUT_AI_BIN_DIR: path.join(aiRoot, "bin"),
 			OPENCUT_AI_MODEL: path.join(aiRoot, "models", "ggml-base.bin"),
 		},
-		stdio: "ignore",
+		stdio: ["ignore", serverLogHandle, serverLogHandle],
 		windowsHide: true,
 	});
 	serverProcess.once("exit", (code) => {
+		if (serverLogHandle !== undefined) {
+			fs.closeSync(serverLogHandle);
+			serverLogHandle = undefined;
+		}
 		if (code && !app.isQuitting) {
 			dialog.showErrorBox(
 				"OpenCut AI berhenti",
-				`Server lokal berhenti dengan kode ${code}.`,
+				`Server lokal berhenti dengan kode ${code}.\n\nDetail error tersimpan di:\n${logPath}`,
 			);
 		}
 	});

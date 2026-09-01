@@ -1,13 +1,15 @@
 {
 	"name": "opencut-ai-windows",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"private": true,
 	"author": "OpenCut AI",
 	"description": "OpenCut AI desktop shell for Windows",
 	"main": "main.cjs",
 	"scripts": {
 		"dev": "electron .",
-		"dist:win": "electron-builder --win nsis portable --x64"
+		"prepare:standalone": "bun scripts/prepare-standalone.mjs",
+		"validate:dist": "node scripts/validate-dist.mjs",
+		"dist:win": "bun run prepare:standalone && electron-builder --win nsis portable --x64 && bun run validate:dist"
 	},
 	"devDependencies": {
 		"electron": "44.0.0",
