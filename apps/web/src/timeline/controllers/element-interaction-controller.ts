@@ -55,7 +55,11 @@ export interface ElementSelectionApi {
 	getSelected: () => readonly ElementRef[];
 	isSelected: (ref: ElementRef) => boolean;
 	select: (ref: ElementRef) => void;
-	handleClick: (args: ElementRef & { isMultiKey: boolean }) => void;
+	handleClick: (
+		args: ElementRef & {
+			selectionMode: "replace" | "toggle" | "range";
+		},
+	) => void;
 	clearKeyframeSelection: () => void;
 }
 
@@ -362,7 +366,10 @@ export class ElementInteractionController {
 		if (event.button === MOUSE_BUTTON_RIGHT) {
 			const ref = { trackId: track.id, elementId: element.id };
 			if (!this.deps.selection.isSelected(ref)) {
-				this.deps.selection.handleClick({ ...ref, isMultiKey: false });
+				this.deps.selection.handleClick({
+					...ref,
+					selectionMode: "replace",
+				});
 			}
 			return;
 		}
@@ -372,8 +379,10 @@ export class ElementInteractionController {
 
 		const ref = { trackId: track.id, elementId: element.id };
 
-		if (event.metaKey || event.ctrlKey || event.shiftKey) {
-			this.deps.selection.handleClick({ ...ref, isMultiKey: true });
+		if (event.shiftKey) {
+			this.deps.selection.handleClick({ ...ref, selectionMode: "range" });
+		} else if (event.metaKey || event.ctrlKey) {
+			this.deps.selection.handleClick({ ...ref, selectionMode: "toggle" });
 		}
 
 		const selectedElements = this.deps.selection.isSelected(ref)
@@ -422,7 +431,7 @@ export class ElementInteractionController {
 			!this.deps.selection.isSelected(ref) ||
 			this.deps.selection.getSelected().length > 1
 		) {
-			this.deps.selection.select(ref);
+			this.deps.selection.handleClick({ ...ref, selectionMode: "replace" });
 			return;
 		}
 

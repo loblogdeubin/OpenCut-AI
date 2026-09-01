@@ -47,8 +47,15 @@ export function useElementInteraction({
 			getActiveFps: () => editor.project.getActive()?.settings.fps ?? null,
 		},
 		selection: {
-			getSelected: () => selection.selectedElements,
-			isSelected: selection.isElementSelected,
+			getSelected: () => editor.selection.getSelectedElements(),
+			isSelected: (ref) =>
+				editor.selection
+					.getSelectedElements()
+					.some(
+						(selectedElement) =>
+							selectedElement.trackId === ref.trackId &&
+							selectedElement.elementId === ref.elementId,
+					),
 			select: selection.selectElement,
 			handleClick: selection.handleElementClick,
 			clearKeyframeSelection: () => editor.selection.clearKeyframeSelection(),
