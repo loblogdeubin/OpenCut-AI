@@ -327,6 +327,20 @@ export function Captions() {
 		toast.success("Subtitle SRT diunduh");
 	};
 
+	const handleSelectAllCaptions = () => {
+		if (!activeSceneTracks) return;
+		const elements = activeSceneTracks.overlay
+			.filter((track) => track.type === "text")
+			.flatMap((track) =>
+				track.elements
+					.filter((element) => /^Caption \d+$/.test(element.name))
+					.map((element) => ({ trackId: track.id, elementId: element.id })),
+			);
+		if (elements.length === 0) return;
+		editor.selection.setSelectedElements({ elements });
+		toast.success(`${elements.length} subtitle dipilih`);
+	};
+
 	const error = processing.status === "idle" ? processing.error : null;
 	const warnings = processing.status === "idle" ? processing.warnings : [];
 
@@ -460,10 +474,21 @@ export function Captions() {
 						{isProcessing ? processing.step : "Buat auto subtitle"}
 					</Button>
 					{exportableCaptions.length > 0 && (
-						<p className="text-center text-xs text-muted-foreground">
-							{exportableCaptions.length} subtitle ada di timeline. Pilih satu
-							subtitle untuk mengedit teks, posisi, warna, dan font.
-						</p>
+						<div className="space-y-2 text-center text-xs text-muted-foreground">
+							<p>{exportableCaptions.length} subtitle ada di timeline.</p>
+							<Button
+								type="button"
+								variant="outline"
+								className="w-full"
+								onClick={handleSelectAllCaptions}
+							>
+								Pilih semua subtitle untuk edit gaya
+							</Button>
+							<p>
+								Shift+klik menambah pilihan. Edit teks tetap dilakukan per subtitle,
+								sedangkan gaya dapat diedit bersama.
+							</p>
+						</div>
 					)}
 					{error && (
 						<div className="bg-destructive/10 border-destructive/20 rounded-md border p-3">

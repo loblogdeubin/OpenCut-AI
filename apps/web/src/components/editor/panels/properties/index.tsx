@@ -14,6 +14,7 @@ import { usePropertiesStore } from "./stores/properties-store";
 import { getPropertiesConfig } from "./registry";
 import { cn } from "@/utils/ui";
 import { EmptyView } from "./empty-view";
+import { BulkTextProperties } from "./components/bulk-text-properties";
 
 export function PropertiesPanel() {
 	const editor = useEditor();
@@ -30,7 +31,28 @@ export function PropertiesPanel() {
 		);
 	}
 
+	const elementsWithTracks = editor.timeline.getElementsWithTracks({
+		elements: selectedElements,
+	});
+
 	if (selectedElements.length > 1) {
+		const selectedTextElements = elementsWithTracks.filter(
+			({ element }) => element.type === "text",
+		);
+		if (selectedTextElements.length === selectedElements.length) {
+			return (
+				<div className="panel bg-background h-full overflow-hidden rounded-sm border">
+					<ScrollArea className="h-full scrollbar-hidden">
+						<BulkTextProperties
+							elements={selectedTextElements.map(({ track, element }) => ({
+								trackId: track.id,
+								element,
+							}))}
+						/>
+					</ScrollArea>
+				</div>
+			);
+		}
 		return (
 			<div className="panel bg-background flex h-full flex-col items-center justify-center overflow-hidden rounded-sm border">
 				<p className="text-muted-foreground text-sm">
@@ -42,9 +64,6 @@ export function PropertiesPanel() {
 
 	const mediaAssets = editor.media.getAssets();
 
-	const elementsWithTracks = editor.timeline.getElementsWithTracks({
-		elements: selectedElements,
-	});
 	const elementWithTrack = elementsWithTracks[0];
 
 	if (!elementWithTrack) return null;
