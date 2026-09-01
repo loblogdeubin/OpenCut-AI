@@ -26,7 +26,14 @@ console.log("Memasang dependency produksi untuk server Windows standalone...");
 const npmExecutable = process.platform === "win32" ? "npm.cmd" : "npm";
 const install = spawnSync(
 	npmExecutable,
-	["install", "--omit=dev", "--no-package-lock", "--no-audit", "--no-fund"],
+	[
+		"install",
+		"--omit=dev",
+		"--legacy-peer-deps",
+		"--no-package-lock",
+		"--no-audit",
+		"--no-fund",
+	],
 	{
 		cwd: standaloneApp,
 		stdio: "inherit",
