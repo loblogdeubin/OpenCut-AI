@@ -10,6 +10,12 @@ license = "MIT"
 path = "src/wasm.rs"
 crate-type = ["cdylib", "rlib"]
 
+# The Windows CI runner's wasm-opt binary cannot yet parse the multiple-table
+# output produced by the current Rust/WebGPU dependency stack.  wasm-pack's
+# default optimisation therefore fails after a successful Rust compilation.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
 [dependencies]
 bridge = { version = "0.1.0", path = "../crates/bridge" }
 compositor = { version = "0.1.0", path = "../crates/compositor" }
