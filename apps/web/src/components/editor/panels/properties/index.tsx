@@ -15,6 +15,7 @@ import { getPropertiesConfig } from "./registry";
 import { cn } from "@/utils/ui";
 import { EmptyView } from "./empty-view";
 import { BulkTextProperties } from "./components/bulk-text-properties";
+import type { TextElement } from "@/timeline";
 
 export function PropertiesPanel() {
 	const editor = useEditor();
@@ -36,17 +37,17 @@ export function PropertiesPanel() {
 	});
 
 	if (selectedElements.length > 1) {
-		const selectedTextElements = elementsWithTracks.filter(
-			({ element }) => element.type === "text",
-		);
-		if (selectedTextElements.length === selectedElements.length) {
+		const allSelectedElementsAreText =
+			elementsWithTracks.length === selectedElements.length &&
+			elementsWithTracks.every(({ element }) => element.type === "text");
+		if (allSelectedElementsAreText) {
 			return (
 				<div className="panel bg-background h-full overflow-hidden rounded-sm border">
 					<ScrollArea className="h-full scrollbar-hidden">
 						<BulkTextProperties
-							elements={selectedTextElements.map(({ track, element }) => ({
+							elements={elementsWithTracks.map(({ track, element }) => ({
 								trackId: track.id,
-								element,
+								element: element as TextElement,
 							}))}
 						/>
 					</ScrollArea>
