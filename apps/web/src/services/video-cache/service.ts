@@ -17,6 +17,8 @@ interface VideoSinkData {
 	prefetchPromise: Promise<void> | null;
 }
 
+const MAX_VIDEO_SINKS = 6;
+
 export class VideoCache {
 	private sinks = new Map<string, VideoSinkData>();
 	private initPromises = new Map<string, Promise<void>>();
@@ -239,7 +241,10 @@ export class VideoCache {
 		mediaId: string;
 		file: File;
 	}): Promise<void> {
-		if (this.sinks.has(mediaId)) return;
+		if (this.sinks.has(mediaId)) {
+			this.touchSink({ mediaId });
+			return;
+		}
 
 		if (this.initPromises.has(mediaId)) {
 			await this.initPromises.get(mediaId);
@@ -279,7 +284,7 @@ export class VideoCache {
 			}
 
 			const sink = new CanvasSink(videoTrack, {
-				poolSize: 3,
+				poolSize: 2,
 				fit: "contain",
 			});
 
@@ -293,10 +298,26 @@ export class VideoCache {
 				prefetching: false,
 				prefetchPromise: null,
 			});
+			this.evictOldestSinks();
 		} catch (error) {
 			input.dispose();
 			console.error(`Failed to initialize video sink for ${mediaId}:`, error);
 			throw error;
+		}
+	}
+
+	private touchSink({ mediaId }: { mediaId: string }): void {
+		const sinkData = this.sinks.get(mediaId);
+		if (!sinkData) return;
+		this.sinks.delete(mediaId);
+		this.sinks.set(mediaId, sinkData);
+	}
+
+	private evictOldestSinks(): void {
+		while (this.sinks.size > MAX_VIDEO_SINKS) {
+			const oldestMediaId = this.sinks.keys().next().value;
+			if (!oldestMediaId) return;
+			this.clearVideo({ mediaId: oldestMediaId });
 		}
 	}
 

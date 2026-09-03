@@ -12,11 +12,15 @@ import type { WorkerMessage, WorkerResponse } from "./worker";
 
 type ProgressCallback = (progress: TranscriptionProgress) => void;
 
+const WORKER_IDLE_TIMEOUT_MS = 15_000;
+
 class TranscriptionService {
 	private worker: Worker | null = null;
 	private currentModelId: TranscriptionModelId | null = null;
 	private isInitialized = false;
 	private isInitializing = false;
+	private activeRequests = 0;
+	private idleTimer: ReturnType<typeof setTimeout> | null = null;
 
 	async transcribe({
 		audioData,
@@ -29,55 +33,68 @@ class TranscriptionService {
 		modelId?: TranscriptionModelId;
 		onProgress?: ProgressCallback;
 	}): Promise<TranscriptionResult> {
-		await this.ensureWorker({ modelId, onProgress });
+		this.activeRequests += 1;
+		this.clearIdleTermination();
 
-		return new Promise((resolve, reject) => {
-			if (!this.worker) {
-				reject(new Error("Worker not initialized"));
-				return;
-			}
+		try {
+			await this.ensureWorker({ modelId, onProgress });
 
-			const handleMessage = (event: MessageEvent<WorkerResponse>) => {
-				const response = event.data;
-
-				switch (response.type) {
-					case "transcribe-progress":
-						onProgress?.({
-							status: "transcribing",
-							progress: response.progress,
-							message: "Transcribing audio...",
-						});
-						break;
-
-					case "transcribe-complete":
-						this.worker?.removeEventListener("message", handleMessage);
-						resolve({
-							text: response.text,
-							segments: response.segments,
-							language,
-						});
-						break;
-
-					case "transcribe-error":
-						this.worker?.removeEventListener("message", handleMessage);
-						reject(new Error(response.error));
-						break;
-
-					case "cancelled":
-						this.worker?.removeEventListener("message", handleMessage);
-						reject(new Error("Transcription cancelled"));
-						break;
+			return await new Promise((resolve, reject) => {
+				if (!this.worker) {
+					reject(new Error("Worker not initialized"));
+					return;
 				}
-			};
 
-			this.worker.addEventListener("message", handleMessage);
+				const handleMessage = (event: MessageEvent<WorkerResponse>) => {
+					const response = event.data;
 
-			this.worker.postMessage({
-				type: "transcribe",
-				audio: audioData,
-				language,
-			} satisfies WorkerMessage);
-		});
+					switch (response.type) {
+						case "transcribe-progress":
+							onProgress?.({
+								status: "transcribing",
+								progress: response.progress,
+								message: "Transcribing audio...",
+							});
+							break;
+
+						case "transcribe-complete":
+							this.worker?.removeEventListener("message", handleMessage);
+							resolve({
+								text: response.text,
+								segments: response.segments,
+								language,
+							});
+							break;
+
+						case "transcribe-error":
+							this.worker?.removeEventListener("message", handleMessage);
+							reject(new Error(response.error));
+							break;
+
+						case "cancelled":
+							this.worker?.removeEventListener("message", handleMessage);
+							reject(new Error("Transcription cancelled"));
+							break;
+					}
+				};
+
+				this.worker.addEventListener("message", handleMessage);
+
+				const message = {
+					type: "transcribe",
+					audio: audioData,
+					language,
+				} satisfies WorkerMessage;
+				if (audioData.buffer instanceof ArrayBuffer) {
+					this.worker.postMessage(message, [audioData.buffer]);
+				} else {
+					this.worker.postMessage(message);
+				}
+			});
+		} finally {
+			this.activeRequests -= 1;
+			this.scheduleIdleTermination();
+		}
 	}
 
 	cancel() {
@@ -174,7 +191,22 @@ class TranscriptionService {
 		});
 	}
 
+	private clearIdleTermination(): void {
+		if (!this.idleTimer) return;
+		clearTimeout(this.idleTimer);
+		this.idleTimer = null;
+	}
+
+	private scheduleIdleTermination(): void {
+		if (this.activeRequests > 0 || !this.worker) return;
+		this.clearIdleTermination();
+		this.idleTimer = setTimeout(() => {
+			this.terminate();
+		}, WORKER_IDLE_TIMEOUT_MS);
+	}
+
 	terminate() {
+		this.clearIdleTermination();
 		this.worker?.terminate();
 		this.worker = null;
 		this.isInitialized = false;

@@ -16,6 +16,26 @@ export interface CachedImageSource {
 }
 
 const imageSourceCache = new Map<string, Promise<CachedImageSource>>();
+const MAX_CACHED_IMAGE_SOURCES = 12;
+
+function touchCachedImage({
+	cacheKey,
+	promise,
+}: {
+	cacheKey: string;
+	promise: Promise<CachedImageSource>;
+}): void {
+	imageSourceCache.delete(cacheKey);
+	imageSourceCache.set(cacheKey, promise);
+}
+
+function evictOldImageSources(): void {
+	while (imageSourceCache.size > MAX_CACHED_IMAGE_SOURCES) {
+		const oldestCacheKey = imageSourceCache.keys().next().value;
+		if (!oldestCacheKey) return;
+		imageSourceCache.delete(oldestCacheKey);
+	}
+}
 
 export function loadImageSource({
 	url,
@@ -27,9 +47,12 @@ export function loadImageSource({
 	const cacheKey = `${url}::${maxSourceSize ?? "full"}`;
 
 	const cached = imageSourceCache.get(cacheKey);
-	if (cached) return cached;
+	if (cached) {
+		touchCachedImage({ cacheKey, promise: cached });
+		return cached;
+	}
 
-	const promise = (async (): Promise<CachedImageSource> => {
+	const pending = (async (): Promise<CachedImageSource> => {
 		const image = new Image();
 
 		await new Promise<void>((resolve, reject) => {
@@ -63,8 +86,15 @@ export function loadImageSource({
 
 		return { source: image, width: naturalWidth, height: naturalHeight };
 	})();
+	const promise = pending.catch((error) => {
+		if (imageSourceCache.get(cacheKey) === promise) {
+			imageSourceCache.delete(cacheKey);
+		}
+		throw error;
+	});
 
 	imageSourceCache.set(cacheKey, promise);
+	evictOldImageSources();
 	return promise;
 }
 
