@@ -85,7 +85,7 @@ async function startLocalServer() {
 			FREESOUND_CLIENT_ID: "desktop-local-only",
 			FREESOUND_API_KEY: "desktop-local-only",
 			OPENCUT_AI_BIN_DIR: path.join(aiRoot, "bin"),
-			OPENCUT_AI_MODEL: path.join(aiRoot, "models", "ggml-base.bin"),
+			OPENCUT_AI_MODEL: path.join(aiRoot, "models", "ggml-base-q5_1.bin"),
 		},
 		stdio: ["ignore", serverLogHandle, serverLogHandle],
 		windowsHide: true,

@@ -1,6 +1,6 @@
 {
 	"name": "opencut-ai-windows",
-	"version": "0.1.6",
+	"version": "0.1.7",
 	"private": true,
 	"author": "OpenCut AI",
 	"description": "OpenCut AI desktop shell for Windows",
@@ -19,6 +19,11 @@
 		"appId": "com.opencut.ai",
 		"productName": "OpenCut AI",
 		"asar": true,
+		"compression": "maximum",
+		"electronLanguages": [
+			"en-US",
+			"id"
+		],
 		"npmRebuild": false,
 		"directories": {
 			"output": "dist"

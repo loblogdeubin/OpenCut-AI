@@ -1,6 +1,6 @@
 # OpenCut AI for Windows
 
-This Electron shell packages the production Next.js standalone server, Chromium runtime, FFmpeg/ffprobe, whisper.cpp, and the multilingual base model into Windows x64 distributions.
+This Electron shell packages the production Next.js standalone server, Chromium runtime, FFmpeg/ffprobe, whisper.cpp, and the quantized multilingual base model into Windows x64 distributions.
 
 ## Artifacts
 

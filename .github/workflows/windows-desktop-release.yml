@@ -77,11 +77,17 @@ jobs:
           Copy-Item build/whisper.cpp-build/bin/Release/* apps/windows/vendor/ai/bin/ -Recurse -Force
           & apps/windows/vendor/ai/bin/whisper-cli.exe --version
 
-      - name: Download multilingual Whisper model
+      - name: Download quantized multilingual Whisper model
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force apps/windows/vendor/ai/models | Out-Null
-          Invoke-WebRequest -Uri "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin?download=true" -OutFile apps/windows/vendor/ai/models/ggml-base.bin
+          $modelPath = "apps/windows/vendor/ai/models/ggml-base-q5_1.bin"
+          Invoke-WebRequest -Uri "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin?download=true" -OutFile $modelPath
+          $expectedSha256 = "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898"
+          $actualSha256 = (Get-FileHash $modelPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualSha256 -ne $expectedSha256) {
+            throw "Checksum model Whisper tidak cocok: $actualSha256"
+          }
 
       - name: Build production web server
         shell: pwsh
@@ -92,11 +98,18 @@ jobs:
         working-directory: apps/windows
         run: bun run dist:win
 
-      - name: Upload Windows executables
+      - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
-          name: OpenCut-AI-Windows-x64
-          path: apps/windows/dist/*.exe
+          name: OpenCut-AI-Setup-Windows-x64
+          path: apps/windows/dist/OpenCut-AI-Setup-*-x64.exe
+          if-no-files-found: error
+
+      - name: Upload Windows portable app
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenCut-AI-Portable-Windows-x64
+          path: apps/windows/dist/OpenCut-AI-Portable-*-x64.exe
           if-no-files-found: error
 
       - name: Publish tagged GitHub release

@@ -10,7 +10,7 @@ on:
       release_tag:
         description: Existing or new GitHub release tag
         required: true
-        default: windows-v0.1.1
+        default: windows-v0.1.7
         type: string
 
 permissions:
@@ -28,7 +28,9 @@ jobs:
       - name: Download successful Windows executables
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh run download "${{ inputs.run_id }}" --name OpenCut-AI-Windows-x64 --dir release
+        run: |
+          gh run download "${{ inputs.run_id }}" --name OpenCut-AI-Setup-Windows-x64 --dir release
+          gh run download "${{ inputs.run_id }}" --name OpenCut-AI-Portable-Windows-x64 --dir release
 
       - name: Verify executables
         run: |
