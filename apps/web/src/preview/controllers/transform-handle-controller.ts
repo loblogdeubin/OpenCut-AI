@@ -72,6 +72,8 @@ interface EdgeScaleSession extends CapturedPointerState {
 	readonly rotationRad: number;
 	readonly shouldClearScaleAnimation: boolean;
 	readonly animationsWithoutScale: ElementAnimations | undefined;
+	/** Source media is cropped by uniform zoom, never stretched. */
+	readonly preserveAspectRatio: boolean;
 }
 
 interface RotationSession extends CapturedPointerState {
@@ -461,6 +463,8 @@ export class TransformHandleController {
 			rotationRad: (context.bounds.rotation * Math.PI) / 180,
 			shouldClearScaleAnimation,
 			animationsWithoutScale,
+			preserveAspectRatio:
+				context.element.type === "video" || context.element.type === "image",
 			pointerId: event.pointerId,
 			captureTarget: this.capturePointer({
 				target: event.currentTarget as HTMLElement,
@@ -704,6 +708,7 @@ export class TransformHandleController {
 
 		const relevantSnap =
 			session.edge === "right" || session.edge === "left" ? xSnap : ySnap;
+		const uniformScale = Math.abs(relevantSnap.snappedScale);
 		this.deps.preview.onSnapLinesChange?.(relevantSnap.activeLines);
 
 		this.deps.timeline.previewElements([
@@ -713,14 +718,18 @@ export class TransformHandleController {
 				updates: {
 					params: buildParamsWithTransform({
 						params: session.initialParams,
-						transform: {
-							...session.initialTransform,
-							scaleX:
-								session.edge === "right" || session.edge === "left"
+					transform: {
+						...session.initialTransform,
+						scaleX:
+							session.preserveAspectRatio
+								? Math.sign(session.initialTransform.scaleX) * uniformScale
+								: session.edge === "right" || session.edge === "left"
 									? xSnap.snappedScale
 									: session.initialTransform.scaleX,
-							scaleY:
-								session.edge === "bottom"
+						scaleY:
+							session.preserveAspectRatio
+								? Math.sign(session.initialTransform.scaleY) * uniformScale
+								: session.edge === "bottom"
 									? ySnap.snappedScale
 									: session.initialTransform.scaleY,
 						},
