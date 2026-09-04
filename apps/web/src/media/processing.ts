@@ -137,7 +137,10 @@ export async function processMediaAssets({
 			} else if (fileType === "video") {
 				try {
 					const videoData = await readVideoFile({ file });
-					duration = videoData.duration;
+					duration =
+						Number.isFinite(videoData.duration) && videoData.duration > 0
+							? videoData.duration
+							: undefined;
 					width = videoData.width;
 					height = videoData.height;
 					fps = Number.isFinite(videoData.fps)

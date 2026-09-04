@@ -9,7 +9,11 @@ export function toElementDurationTicks({
 }: {
 	seconds: number | null | undefined;
 }) {
-	if (seconds == null) {
+	// Container metadata is not guaranteed to include a finite duration. In
+	// particular, malformed or streaming-like video files can report NaN or
+	// Infinity. Never pass either through the WASM time boundary: it throws and
+	// would otherwise take down the editor while a clip is being dragged.
+	if (seconds == null || !Number.isFinite(seconds) || seconds <= 0) {
 		return DEFAULT_NEW_ELEMENT_DURATION;
 	}
 

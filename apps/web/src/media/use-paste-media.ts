@@ -6,8 +6,7 @@ import { buildElementFromMedia } from "@/timeline/element-utils";
 import { AddMediaAssetCommand } from "@/commands/media";
 import { InsertElementCommand } from "@/commands/timeline";
 import { BatchCommand } from "@/commands";
-import { DEFAULT_NEW_ELEMENT_DURATION } from "@/timeline/creation";
-import { mediaTimeFromSeconds } from "@/wasm";
+import { toElementDurationTicks } from "@/timeline/creation";
 import { isTypableDOMElement } from "@/utils/browser";
 import type { MediaType } from "@/media/types";
 
@@ -73,10 +72,9 @@ export function usePasteMedia() {
 								asset,
 							});
 							const assetId = addMediaCmd.getAssetId();
-							const duration =
-								asset.duration != null
-									? mediaTimeFromSeconds({ seconds: asset.duration })
-									: DEFAULT_NEW_ELEMENT_DURATION;
+							const duration = toElementDurationTicks({
+								seconds: asset.duration,
+							});
 							const trackType = asset.type === "audio" ? "audio" : "video";
 
 							const element = buildElementFromMedia({
