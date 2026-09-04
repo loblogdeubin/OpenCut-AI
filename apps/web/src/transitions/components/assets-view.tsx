@@ -3,7 +3,14 @@
 import { Button } from "@/components/ui/button";
 import { PanelView } from "@/components/editor/panels/assets/views/base-panel";
 import { useEditor } from "@/editor/use-editor";
-import { mediaTimeFromSeconds } from "@/wasm";
+import {
+	maxMediaTime,
+	mediaTimeFromSeconds,
+	minMediaTime,
+	roundMediaTime,
+	subMediaTime,
+	ZERO_MEDIA_TIME,
+} from "@/wasm";
 import { toast } from "sonner";
 
 type TransitionPreset =
@@ -43,17 +50,20 @@ export function TransitionsView() {
 			return;
 		}
 
-		const duration = Math.min(
-			target.element.duration / 2,
-			mediaTimeFromSeconds({ seconds: 0.5 }),
-		);
+		const duration = minMediaTime({
+			a: roundMediaTime({ time: target.element.duration / 2 }),
+			b: mediaTimeFromSeconds({ seconds: 0.5 }),
+		});
 		const end = target.element.duration;
-		const startOfOutro = Math.max(0, end - duration);
+		const startOfOutro = maxMediaTime({
+			a: ZERO_MEDIA_TIME,
+			b: subMediaTime({ a: end, b: duration }),
+		});
 		const keyframes = (() => {
 			switch (preset) {
 				case "fade-in":
 					return [
-						{ propertyPath: "opacity", time: 0, value: 0 },
+						{ propertyPath: "opacity", time: ZERO_MEDIA_TIME, value: 0 },
 						{ propertyPath: "opacity", time: duration, value: 1 },
 					];
 				case "fade-out":
@@ -63,7 +73,11 @@ export function TransitionsView() {
 					];
 				case "slide-in-right":
 					return [
-						{ propertyPath: "transform.positionX", time: 0, value: 1200 },
+						{
+							propertyPath: "transform.positionX",
+							time: ZERO_MEDIA_TIME,
+							value: 1200,
+						},
 						{ propertyPath: "transform.positionX", time: duration, value: 0 },
 					];
 				case "slide-out-left":
@@ -77,9 +91,17 @@ export function TransitionsView() {
 					];
 				case "zoom-in":
 					return [
-						{ propertyPath: "transform.scaleX", time: 0, value: 0.82 },
+						{
+							propertyPath: "transform.scaleX",
+							time: ZERO_MEDIA_TIME,
+							value: 0.82,
+						},
 						{ propertyPath: "transform.scaleX", time: duration, value: 1 },
-						{ propertyPath: "transform.scaleY", time: 0, value: 0.82 },
+						{
+							propertyPath: "transform.scaleY",
+							time: ZERO_MEDIA_TIME,
+							value: 0.82,
+						},
 						{ propertyPath: "transform.scaleY", time: duration, value: 1 },
 					];
 			}

@@ -27,7 +27,9 @@ test("never extends a caption past the transcription segment", () => {
 		minDuration: 0.8,
 	});
 
-	expect(captions.at(-1)?.startTime + (captions.at(-1)?.duration ?? 0)).toBe(1);
+	const lastCaption = captions.at(-1);
+	expect(lastCaption).toBeDefined();
+	expect(lastCaption!.startTime + lastCaption!.duration).toBe(1);
 });
 
 test("keeps a silent gap between word-timed captions empty", () => {
