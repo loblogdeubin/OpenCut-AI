@@ -79,11 +79,17 @@ export class TimelineManager {
 	}
 
 	removeTrack({ trackId }: { trackId: string }): void {
+		if (this.isTrackLocked({ trackId })) return;
 		const command = new RemoveTrackCommand(trackId);
 		this.editor.command.execute({ command });
 	}
 
 	insertElement({ element, placement }: InsertElementParams): void {
+		if (
+			placement.mode === "explicit" &&
+			this.isTrackLocked({ trackId: placement.trackId })
+		)
+			return;
 		const command = new InsertElementCommand({ element, placement });
 		this.editor.command.execute({ command });
 	}
@@ -163,12 +169,17 @@ export class TimelineManager {
 		moves: PlannedElementMove[];
 		createTracks?: PlannedTrackCreation[];
 	}): void {
-		if (moves.length === 0) {
+		const editableMoves = moves.filter(
+			(move) =>
+				!this.isTrackLocked({ trackId: move.sourceTrackId }) &&
+				!this.isTrackLocked({ trackId: move.targetTrackId }),
+		);
+		if (editableMoves.length === 0) {
 			return;
 		}
 
 		const command = new MoveElementCommand({
-			moves,
+			moves: editableMoves,
 			createTracks,
 		});
 		this.editor.command.execute({ command });
@@ -184,6 +195,24 @@ export class TimelineManager {
 		this.editor.command.execute({ command });
 	}
 
+	toggleTrackLocked({ trackId }: { trackId: string }): void {
+		const scene = this.editor.scenes.getActiveSceneOrNull();
+		if (!scene || !this.getTrackById({ trackId })) return;
+		const toggle = <TTrack extends TimelineTrack>(track: TTrack): TTrack =>
+			track.id === trackId
+				? ({ ...track, locked: !track.locked } as TTrack)
+				: track;
+		const after: SceneTracks = {
+			...scene.tracks,
+			main: toggle(scene.tracks.main),
+			overlay: scene.tracks.overlay.map(toggle),
+			audio: scene.tracks.audio.map(toggle),
+		};
+		this.editor.command.execute({
+			command: new TracksSnapshotCommand({ before: scene.tracks, after }),
+		});
+	}
+
 	splitElements({
 		elements,
 		splitTime,
@@ -193,8 +222,12 @@ export class TimelineManager {
 		splitTime: MediaTime;
 		retainSide?: "both" | "left" | "right";
 	}): { trackId: string; elementId: string }[] {
+		const editableElements = elements.filter(
+			({ trackId }) => !this.isTrackLocked({ trackId }),
+		);
+		if (editableElements.length === 0) return [];
 		const command = new SplitElementsCommand({
-			elements,
+			elements: editableElements,
 			splitTime,
 			retainSide,
 		});
@@ -254,7 +287,11 @@ export class TimelineManager {
 	}: {
 		elements: { trackId: string; elementId: string }[];
 	}): void {
-		const command = new DeleteElementsCommand({ elements });
+		const editableElements = elements.filter(
+			({ trackId }) => !this.isTrackLocked({ trackId }),
+		);
+		if (editableElements.length === 0) return;
+		const command = new DeleteElementsCommand({ elements: editableElements });
 		this.editor.command.execute({ command });
 	}
 
@@ -265,6 +302,7 @@ export class TimelineManager {
 		trackId: string;
 		elementId: string;
 	}): void {
+		if (this.isTrackLocked({ trackId })) return;
 		const command = new ToggleSourceAudioSeparationCommand({
 			trackId,
 			elementId,
@@ -283,12 +321,15 @@ export class TimelineManager {
 		}>;
 		pushHistory?: boolean;
 	}): void {
-		if (updates.length === 0) {
+		const editableUpdates = updates.filter(
+			({ trackId }) => !this.isTrackLocked({ trackId }),
+		);
+		if (editableUpdates.length === 0) {
 			return;
 		}
 
 		const command = new UpdateElementsCommand({
-			updates,
+			updates: editableUpdates,
 		});
 		if (pushHistory) {
 			this.editor.command.execute({ command });
@@ -713,7 +754,8 @@ export class TimelineManager {
 		}[];
 	}): void {
 		let changedOverlayCount = 0;
-		for (const { elementId, updates: elementUpdates } of updates) {
+		for (const { trackId, elementId, updates: elementUpdates } of updates) {
+			if (this.isTrackLocked({ trackId })) continue;
 			const existingOverlay = this.previewOverlay.get(elementId);
 			const changed = Object.entries(elementUpdates).some(([key, value]) => {
 				return !Object.is(
@@ -891,6 +933,10 @@ export class TimelineManager {
 		return this.getTrackById({ trackId })?.elements.find(
 			(element) => element.id === elementId,
 		);
+	}
+
+	private isTrackLocked({ trackId }: { trackId: string }): boolean {
+		return this.getTrackById({ trackId })?.locked === true;
 	}
 
 	private findTrackIdForElement({

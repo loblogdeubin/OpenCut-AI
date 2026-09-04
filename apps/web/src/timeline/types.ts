@@ -31,6 +31,8 @@ export type TrackType = "video" | "text" | "audio" | "graphic" | "effect";
 interface BaseTrack {
 	id: string;
 	name: string;
+	/** Locked tracks are read-only in the timeline. */
+	locked?: boolean;
 }
 
 export interface VideoTrack extends BaseTrack {

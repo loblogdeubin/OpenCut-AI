@@ -64,7 +64,7 @@ export function TimelineTrackContent({
 			/>
 			{/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- spatial gesture surface; the wrapping <button> handles keyboard track selection, this <div> only forwards background clicks for box-select / deselect. */}
 			<div
-				className="relative h-full min-w-full"
+				className={`relative h-full min-w-full ${track.locked ? "pointer-events-none opacity-70" : ""}`}
 				style={{ zIndex: TIMELINE_LAYERS.trackContent }}
 				onMouseUp={(event) => {
 					if (event.target !== event.currentTarget) return;

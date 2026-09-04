@@ -698,6 +698,24 @@ function TrackLabelsPanel({
 													}
 												/>
 											)}
+											<button
+												type="button"
+												className={cn(
+													"text-muted-foreground hover:text-foreground size-4 text-xs leading-none",
+													track.locked && "text-primary",
+												)}
+												onClick={() =>
+													editor.timeline.toggleTrackLocked({
+														trackId: track.id,
+													})
+												}
+												title={track.locked ? "Unlock track" : "Lock track"}
+												aria-label={
+													track.locked ? "Unlock track" : "Lock track"
+												}
+											>
+												{track.locked ? "🔒" : "🔓"}
+											</button>
 											<TrackIcon track={track} />
 										</div>
 										{expandedRows.length > 0 && (
@@ -836,6 +854,14 @@ function TimelineTrackRows({
 						</div>
 					</ContextMenuTrigger>
 					<ContextMenuContent className="w-40">
+						<ContextMenuItem
+							onClick={(event: React.MouseEvent) => {
+								event.stopPropagation();
+								timeline.toggleTrackLocked({ trackId: track.id });
+							}}
+						>
+							{track.locked ? "Unlock track" : "Lock track"}
+						</ContextMenuItem>
 						<ContextMenuItem
 							icon={<HugeiconsIcon icon={TaskAdd02Icon} />}
 							onClick={(event: React.MouseEvent) => {

@@ -82,6 +82,7 @@ export function buildEmptyTrack({
 				name: trackName,
 				type: "video",
 				elements: [],
+				locked: false,
 				hidden: false,
 				muted: false,
 			};
@@ -91,6 +92,7 @@ export function buildEmptyTrack({
 				name: trackName,
 				type: "text",
 				elements: [],
+				locked: false,
 				hidden: false,
 			};
 		case "graphic":
@@ -99,6 +101,7 @@ export function buildEmptyTrack({
 				name: trackName,
 				type: "graphic",
 				elements: [],
+				locked: false,
 				hidden: false,
 			};
 		case "audio":
@@ -107,6 +110,7 @@ export function buildEmptyTrack({
 				name: trackName,
 				type: "audio",
 				elements: [],
+				locked: false,
 				muted: false,
 			};
 		case "effect":
@@ -115,6 +119,7 @@ export function buildEmptyTrack({
 				name: trackName,
 				type: "effect",
 				elements: [],
+				locked: false,
 				hidden: false,
 			};
 		default:

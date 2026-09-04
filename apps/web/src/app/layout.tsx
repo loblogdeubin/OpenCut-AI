@@ -7,9 +7,12 @@ import { TooltipProvider } from "../components/ui/tooltip";
 import { baseMetaData } from "./metadata";
 import { BotIdClient } from "botid/client";
 import { webEnv } from "@/env/web";
-import { Inter } from "next/font/google";
+import { DM_Sans } from "next/font/google";
 
-const siteFont = Inter({ subsets: ["latin"] });
+const siteFont = DM_Sans({
+	subsets: ["latin"],
+	variable: "--font-dm-sans",
+});
 
 export const metadata = baseMetaData;
 
@@ -39,7 +42,13 @@ export default function RootLayout({
 					</>
 				)}
 			</head>
-			<body className={`${siteFont.className} font-sans antialiased`}>
+			<body
+				className={`${siteFont.className} ${siteFont.variable} font-sans antialiased`}
+				style={{
+					fontFamily:
+						'"Google Sans", "Google Sans Text", var(--font-dm-sans), sans-serif',
+				}}
+			>
 				<ThemeProvider
 					attribute="class"
 					defaultTheme="system"
