@@ -14,14 +14,13 @@ export function buildCaptionChunks({
 	minDuration?: number;
 }): CaptionChunk[] {
 	const captions: CaptionChunk[] = [];
-	let globalEndTime = 0;
 
 	for (const segment of segments) {
 		const words = segment.text.trim().split(/\s+/);
 		if (words.length === 0 || (words.length === 1 && words[0] === "")) continue;
 
 		const segmentDuration = segment.end - segment.start;
-		const wordsPerSecond = words.length / segmentDuration;
+		if (!Number.isFinite(segmentDuration) || segmentDuration <= 0) continue;
 
 		const chunks: string[] = [];
 		for (let i = 0; i < words.length; i += wordsPerChunk) {
@@ -29,18 +28,30 @@ export function buildCaptionChunks({
 		}
 
 		let chunkStartTime = segment.start;
-		for (const chunk of chunks) {
+		let remainingWords = words.length;
+		for (const [index, chunk] of chunks.entries()) {
 			const chunkWords = chunk.split(/\s+/).length;
-			const chunkDuration = Math.max(minDuration, chunkWords / wordsPerSecond);
-			const adjustedStartTime = Math.max(chunkStartTime, globalEndTime);
+			const remainingDuration = Math.max(0, segment.end - chunkStartTime);
+			// Whisper's segment timestamps are the source of truth. Never let the
+			// caption spill beyond `segment.end`, otherwise a caption remains visible
+			// while the speaker is silent.
+			const proportionalDuration =
+				remainingDuration * (chunkWords / remainingWords);
+			const chunkDuration =
+				index === chunks.length - 1
+					? remainingDuration
+					: Math.min(
+							remainingDuration,
+							Math.max(minDuration, proportionalDuration),
+						);
 
 			captions.push({
 				text: chunk,
-				startTime: adjustedStartTime,
+				startTime: chunkStartTime,
 				duration: chunkDuration,
 			});
 
-			globalEndTime = adjustedStartTime + chunkDuration;
+			remainingWords -= chunkWords;
 			chunkStartTime += chunkDuration;
 		}
 	}
