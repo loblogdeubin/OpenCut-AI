@@ -91,7 +91,17 @@ export async function POST(request: Request) {
 		if (!model) throw new Error("Whisper model is missing");
 		await execFileAsync(
 			resolveLocalAiCommand("whisper-cli"),
-			["-m", model, "-l", language, "-oj", "-of", outputBase, audioPath],
+			[
+				"-m",
+				model,
+				"-l",
+				language,
+				"-ojf",
+				"-owts",
+				"-of",
+				outputBase,
+				audioPath,
+			],
 			{ timeout: 30 * 60_000, maxBuffer: 16 * 1024 * 1024 },
 		);
 
@@ -110,11 +120,33 @@ export async function POST(request: Request) {
 				typeof segment.offsets.to !== "number"
 			)
 				return [];
+			const words = Array.isArray(segment.tokens)
+				? segment.tokens.flatMap((token: unknown) => {
+						if (!isRecord(token) || !isRecord(token.offsets)) return [];
+						if (
+							typeof token.text !== "string" ||
+							typeof token.offsets.from !== "number" ||
+							typeof token.offsets.to !== "number"
+						)
+							return [];
+						const text = token.text.trim();
+						return text && token.offsets.to > token.offsets.from
+							? [
+									{
+										text,
+										start: token.offsets.from / 1000,
+										end: token.offsets.to / 1000,
+									},
+								]
+							: [];
+					})
+				: [];
 			return [
 				{
 					text: segment.text.trim(),
 					start: segment.offsets.from / 1000,
 					end: segment.offsets.to / 1000,
+					...(words.length > 0 ? { words } : {}),
 				},
 			];
 		});

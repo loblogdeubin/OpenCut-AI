@@ -6,6 +6,13 @@ export interface TranscriptionSegment {
 	text: string;
 	start: number;
 	end: number;
+	words?: TranscriptionWord[];
+}
+
+export interface TranscriptionWord {
+	text: string;
+	start: number;
+	end: number;
 }
 
 export interface TranscriptionResult {

@@ -29,3 +29,24 @@ test("never extends a caption past the transcription segment", () => {
 
 	expect(captions.at(-1)?.startTime + (captions.at(-1)?.duration ?? 0)).toBe(1);
 });
+
+test("keeps a silent gap between word-timed captions empty", () => {
+	const captions = buildCaptionChunks({
+		segments: [
+			{
+				text: "halo lagi",
+				start: 0,
+				end: 3,
+				words: [
+					{ text: "halo", start: 0, end: 0.4 },
+					{ text: "lagi", start: 2, end: 2.4 },
+				],
+			},
+		],
+	});
+
+	expect(captions).toEqual([
+		{ text: "halo", startTime: 0, duration: 0.4 },
+		{ text: "lagi", startTime: 2, duration: 0.4 },
+	]);
+});
