@@ -121,4 +121,5 @@ jobs:
           gh release delete "windows-v0.1.7" --yes 2>$null
           gh release delete "windows-v0.1.8" --yes 2>$null
           gh release delete "windows-v0.1.9" --yes 2>$null
+          gh release delete "windows-v0.1.10" --yes 2>$null
           gh release create "${{ github.ref_name }}" apps/windows/dist/*.exe --generate-notes --title "OpenCut AI Windows ${{ github.ref_name }}"
