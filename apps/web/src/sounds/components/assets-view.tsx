@@ -35,6 +35,15 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
+const TRANSITION_SOUND_PRESETS = [
+	{ label: "Whoosh", query: "whoosh transition" },
+	{ label: "Swipe", query: "swipe transition" },
+	{ label: "Pop", query: "pop transition" },
+	{ label: "Click", query: "click transition" },
+	{ label: "Impact", query: "impact transition" },
+	{ label: "Rise", query: "riser transition" },
+] as const;
+
 export function SoundsView() {
 	return (
 		<div className="flex h-full flex-col">
@@ -261,6 +270,25 @@ function SoundEffectsView() {
 						</div>
 					</DropdownMenuContent>
 				</DropdownMenu>
+			</div>
+			<div>
+				<p className="text-muted-foreground mb-2 text-xs font-medium">
+					Transition sounds
+				</p>
+				<div className="flex flex-wrap gap-1.5">
+					{TRANSITION_SOUND_PRESETS.map((preset) => (
+						<Button
+							key={preset.query}
+							type="button"
+							variant={searchQuery === preset.query ? "secondary" : "outline"}
+							size="sm"
+							className="h-7 px-2 text-xs"
+							onClick={() => setSearchQuery({ query: preset.query })}
+						>
+							{preset.label}
+						</Button>
+					))}
+				</div>
 			</div>
 
 			<div className="relative h-full overflow-hidden">
