@@ -135,36 +135,25 @@ export async function processMediaAssets({
 				width = result.width;
 				height = result.height;
 			} else if (fileType === "video") {
-				try {
-					const videoData = await readVideoFile({ file });
-					duration =
-						Number.isFinite(videoData.duration) && videoData.duration > 0
-							? videoData.duration
-							: undefined;
-					width = videoData.width;
-					height = videoData.height;
-					fps = Number.isFinite(videoData.fps)
-						? Math.round(videoData.fps)
+				const videoData = await readVideoFile({ file });
+				duration =
+					Number.isFinite(videoData.duration) && videoData.duration > 0
+						? videoData.duration
 						: undefined;
-					hasAudio = videoData.hasAudio;
-					videoCodec = videoData.codec ?? undefined;
-					audioCodec = videoData.audioCodec ?? undefined;
-					thumbnailUrl = videoData.thumbnailUrl ?? undefined;
+				width = videoData.width;
+				height = videoData.height;
+				fps = Number.isFinite(videoData.fps)
+					? Math.round(videoData.fps)
+					: undefined;
+				hasAudio = videoData.hasAudio;
+				videoCodec = videoData.codec ?? undefined;
+				audioCodec = videoData.audioCodec ?? undefined;
+				thumbnailUrl = videoData.thumbnailUrl ?? undefined;
 
-					if (!videoData.canDecode) {
-						toast.error(`Can't preview ${file.name}`, {
-							description: getUnsupportedVideoDescription({
-								codec: videoData.codec,
-							}),
-						});
-					}
-				} catch (error) {
-					const message =
-						error instanceof Error ? error.message : "Could not process video";
-
-					toast.error(`Couldn't process ${file.name}`, {
-						description: message,
-					});
+				if (!videoData.canDecode) {
+					throw new Error(
+						getUnsupportedVideoDescription({ codec: videoData.codec }),
+					);
 				}
 			} else if (fileType === "audio") {
 				duration = await getMediaDuration({ file });
@@ -191,16 +180,19 @@ export async function processMediaAssets({
 			});
 
 			await new Promise((resolve) => setTimeout(resolve, 0));
-
+		} catch (error) {
+			console.error("Error processing file:", file.name, error);
+			toast.error(`Couldn't process ${file.name}`, {
+				description:
+					error instanceof Error ? error.message : "Unknown decoding error",
+			});
+			URL.revokeObjectURL(url);
+		} finally {
 			completed += 1;
 			if (onProgress) {
 				const percent = Math.round((completed / total) * 100);
 				onProgress({ progress: percent });
 			}
-		} catch (error) {
-			console.error("Error processing file:", file.name, error);
-			toast.error(`Failed to process ${file.name}`);
-			URL.revokeObjectURL(url);
 		}
 	}
 
