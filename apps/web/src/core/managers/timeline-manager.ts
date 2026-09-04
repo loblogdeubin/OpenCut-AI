@@ -532,11 +532,14 @@ export class TimelineManager {
 			keyframeId?: string;
 		}>;
 	}): void {
-		if (keyframes.length === 0) {
+		const editableKeyframes = keyframes.filter(
+			({ trackId }) => !this.isTrackLocked({ trackId }),
+		);
+		if (editableKeyframes.length === 0) {
 			return;
 		}
 
-		const commands = keyframes.map(
+		const commands = editableKeyframes.map(
 			({
 				trackId,
 				elementId,
@@ -883,7 +886,9 @@ export class TimelineManager {
 	}): void {
 		const shouldMute = elements.some(({ trackId, elementId }) => {
 			const element = this.getElementByRef({ trackId, elementId });
-			return element && canElementHaveAudio(element) && !isElementMuted({ element });
+			return (
+				element && canElementHaveAudio(element) && !isElementMuted({ element })
+			);
 		});
 
 		const nextUpdates = elements.flatMap(({ trackId, elementId }) => {
