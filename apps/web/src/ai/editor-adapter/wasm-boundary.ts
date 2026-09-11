@@ -1,5 +1,8 @@
 import * as opencutWasm from "opencut-wasm";
 import type {
+	AudioCatalogV1,
+	AudioPlanV1,
+	AudioPlanValidationPhaseV1,
 	AudibleRangeV1,
 	DetectAudibleRangesV1Options,
 	EditPlanV1,
@@ -36,8 +39,16 @@ type ContractWasm = {
 		snapshot: ProjectSnapshotV1;
 		plan: EditPlanV1;
 	}) => ValidateResult;
+	validateAudioPlanV1?: (options: {
+		snapshot: ProjectSnapshotV1;
+		catalog: AudioCatalogV1;
+		plan: AudioPlanV1;
+		phase: AudioPlanValidationPhaseV1;
+	}) => ValidateResult;
 };
 
+// The published package declarations can lag the locally-built WASM exports.
+// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
 const contractWasm = opencutWasm as unknown as ContractWasm;
 
 export function detectAudibleRanges(
@@ -82,6 +93,28 @@ export function validateEditPlan({
 }): ValidationResultV1 {
 	if (!contractWasm.validateEditPlanV1) throw unavailableError();
 	const result = contractWasm.validateEditPlanV1({ snapshot, plan });
+	if (!result.ok || !result.validation) throw boundaryFailure(result.errors);
+	return result.validation;
+}
+
+export function validateAudioPlan({
+	snapshot,
+	catalog,
+	plan,
+	phase,
+}: {
+	snapshot: ProjectSnapshotV1;
+	catalog: AudioCatalogV1;
+	plan: AudioPlanV1;
+	phase: AudioPlanValidationPhaseV1;
+}): ValidationResultV1 {
+	if (!contractWasm.validateAudioPlanV1) throw unavailableError();
+	const result = contractWasm.validateAudioPlanV1({
+		snapshot,
+		catalog,
+		plan,
+		phase,
+	});
 	if (!result.ok || !result.validation) throw boundaryFailure(result.errors);
 	return result.validation;
 }

@@ -24,6 +24,7 @@ export class VideoCache {
 	private initPromises = new Map<string, Promise<void>>();
 	private frameChain = new Map<string, Promise<unknown>>();
 	private seekGenerations = new Map<string, number>();
+	private failedMediaIds = new Set<string>();
 
 	async getFrameAt({
 		mediaId,
@@ -34,6 +35,8 @@ export class VideoCache {
 		file: File;
 		time: number;
 	}): Promise<WrappedCanvas | null> {
+		if (this.failedMediaIds.has(mediaId)) return null;
+
 		await this.ensureSink({ mediaId, file });
 
 		const sinkData = this.sinks.get(mediaId);
@@ -301,8 +304,8 @@ export class VideoCache {
 			this.evictOldestSinks();
 		} catch (error) {
 			input.dispose();
+			this.failedMediaIds.add(mediaId);
 			console.error(`Failed to initialize video sink for ${mediaId}:`, error);
-			throw error;
 		}
 	}
 
@@ -335,6 +338,7 @@ export class VideoCache {
 		this.initPromises.delete(mediaId);
 		this.frameChain.delete(mediaId);
 		this.seekGenerations.delete(mediaId);
+		this.failedMediaIds.delete(mediaId);
 	}
 
 	clearAll(): void {

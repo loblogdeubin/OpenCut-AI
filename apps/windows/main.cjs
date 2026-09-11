@@ -10,6 +10,11 @@ let mainWindow;
 let serverProcess;
 let serverLogHandle;
 
+// Keep the local origin stable because IndexedDB and OPFS are scoped to the
+// complete origin, including its port. A random port on every launch makes
+// existing projects and their media appear to disappear after a restart.
+const DESKTOP_SERVER_PORT = 55966;
+
 app.setAppUserModelId("com.opencut.ai");
 
 function reservePort() {
@@ -17,9 +22,12 @@ function reservePort() {
 		const server = net.createServer();
 		server.unref();
 		server.once("error", reject);
-		server.listen(0, "127.0.0.1", () => {
+		server.listen(DESKTOP_SERVER_PORT, "127.0.0.1", () => {
 			const address = server.address();
-			const port = typeof address === "object" && address ? address.port : 3210;
+			const port =
+				typeof address === "object" && address
+					? address.port
+					: DESKTOP_SERVER_PORT;
 			server.close(() => resolve(port));
 		});
 	});
@@ -74,6 +82,7 @@ async function startLocalServer() {
 			ELECTRON_RUN_AS_NODE: "1",
 			HOSTNAME: "127.0.0.1",
 			NODE_ENV: "production",
+			OPENCUT_DESKTOP_LOCAL: "1",
 			PORT: String(port),
 			BETTER_AUTH_SECRET: crypto.randomBytes(32).toString("hex"),
 			DATABASE_URL: "postgresql://opencut:opencut@127.0.0.1:5432/opencut",
@@ -82,8 +91,9 @@ async function startLocalServer() {
 			UPSTASH_REDIS_REST_URL: "https://placeholder.invalid",
 			UPSTASH_REDIS_REST_TOKEN: "desktop-local-only",
 			MARBLE_WORKSPACE_KEY: "desktop-local-only",
-			FREESOUND_CLIENT_ID: "desktop-local-only",
-			FREESOUND_API_KEY: "desktop-local-only",
+			FREESOUND_CLIENT_ID:
+				process.env.FREESOUND_CLIENT_ID || "desktop-local-only",
+			FREESOUND_API_KEY: process.env.FREESOUND_API_KEY || "desktop-local-only",
 			OPENCUT_AI_BIN_DIR: path.join(aiRoot, "bin"),
 			OPENCUT_AI_MODEL: path.join(aiRoot, "models", "ggml-base-q5_1.bin"),
 		},

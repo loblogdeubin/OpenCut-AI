@@ -25,7 +25,16 @@ const installLocations = [
 
 for (const installLocation of installLocations) {
 	rmSync(installLocation, { recursive: true, force: true });
-	symlinkSync(relative(dirname(installLocation), wasmPackage), installLocation);
+	if (process.platform === "win32") {
+		// Directory junctions do not require Windows Developer Mode or elevation.
+		symlinkSync(wasmPackage, installLocation, "junction");
+	} else {
+		symlinkSync(
+			relative(dirname(installLocation), wasmPackage),
+			installLocation,
+			"dir",
+		);
+	}
 }
 
 console.log("Linked opencut-wasm to rust/wasm/pkg for root and apps/web.");

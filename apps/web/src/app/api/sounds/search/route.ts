@@ -12,7 +12,10 @@ const searchParamsSchema = z.object({
 		.enum(["downloads", "rating", "created", "score"])
 		.default("downloads"),
 	min_rating: z.coerce.number().min(0).max(5).default(3),
-	commercial_only: z.coerce.boolean().default(true),
+	commercial_only: z
+		.enum(["true", "false"])
+		.default("true")
+		.transform((value) => value === "true"),
 });
 
 const freesoundResultSchema = z.object({
@@ -88,6 +91,8 @@ const apiResponseSchema = z.object({
 	minRating: z.number().optional(),
 });
 
+const freesoundApiKeySchema = z.string().trim().min(8).max(256);
+
 function buildSortParameter({ query, sort }: { query?: string; sort: string }) {
 	if (!query) return `${sort}_desc`;
 	return sort === "score" ? "score" : `${sort}_desc`;
@@ -108,13 +113,36 @@ function applyEffectsFilters({
 	if (commercial_only) {
 		params.append(
 			"filter",
-			'license:("Attribution" OR "Creative Commons 0" OR "Attribution Noncommercial" OR "Attribution Commercial")',
+			'license:("Attribution" OR "Creative Commons 0" OR "Attribution Commercial")',
 		);
 	}
 
 	params.append(
 		"filter",
 		"tag:sound-effect OR tag:sfx OR tag:foley OR tag:ambient OR tag:nature OR tag:mechanical OR tag:electronic OR tag:impact OR tag:whoosh OR tag:explosion",
+	);
+}
+
+function applySongsFilters({
+	params,
+	min_rating,
+	commercial_only,
+}: {
+	params: URLSearchParams;
+	min_rating: number;
+	commercial_only: boolean;
+}) {
+	params.append("filter", "duration:[15.0 TO 600.0]");
+	params.append("filter", `avg_rating:[${min_rating} TO *]`);
+	if (commercial_only) {
+		params.append(
+			"filter",
+			'license:("Attribution" OR "Creative Commons 0" OR "Attribution Commercial")',
+		);
+	}
+	params.append(
+		"filter",
+		"tag:music OR tag:background-music OR tag:soundtrack OR tag:ambient-music OR tag:cinematic-music",
 	);
 }
 
@@ -163,6 +191,7 @@ export async function GET(request: NextRequest) {
 			page_size: searchParams.get("page_size") || undefined,
 			sort: searchParams.get("sort") || undefined,
 			min_rating: searchParams.get("min_rating") || undefined,
+			commercial_only: searchParams.get("commercial_only") || undefined,
 		});
 
 		if (!validationResult.success) {
@@ -185,24 +214,18 @@ export async function GET(request: NextRequest) {
 			commercial_only,
 		} = validationResult.data;
 
-		if (type === "songs") {
-			return NextResponse.json(
-				{
-					error: "Songs are not available yet",
-					message:
-						"Song search functionality is coming soon. Try searching for sound effects instead.",
-				},
-				{ status: 501 },
-			);
-		}
-
 		const baseUrl = "https://freesound.org/apiv2/search/text/";
+		const headerApiKey = freesoundApiKeySchema.safeParse(
+			request.headers.get("x-opencut-freesound-key"),
+		);
+		const apiKey = headerApiKey.success
+			? headerApiKey.data
+			: webEnv.FREESOUND_API_KEY;
 
 		const sortParam = buildSortParameter({ query, sort });
 
 		const params = new URLSearchParams({
 			query: query || "",
-			token: webEnv.FREESOUND_API_KEY,
 			page: page.toString(),
 			page_size: pageSize.toString(),
 			sort: sortParam,
@@ -210,12 +233,15 @@ export async function GET(request: NextRequest) {
 				"id,name,description,url,previews,download,duration,filesize,type,channels,bitrate,bitdepth,samplerate,username,tags,license,created,num_downloads,avg_rating,num_ratings",
 		});
 
-		const isEffectsSearch = type === "effects" || !type;
-		if (isEffectsSearch) {
+		if (type === "songs") {
+			applySongsFilters({ params, min_rating, commercial_only });
+		} else {
 			applyEffectsFilters({ params, min_rating, commercial_only });
 		}
 
-		const response = await fetch(`${baseUrl}?${params.toString()}`);
+		const response = await fetch(`${baseUrl}?${params.toString()}`, {
+			headers: { authorization: `Token ${apiKey}` },
+		});
 
 		if (!response.ok) {
 			const errorText = await response.text();

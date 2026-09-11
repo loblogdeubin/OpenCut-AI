@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, lstatSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -15,6 +15,13 @@ const nextPackage = path.join(
 	"next",
 	"package.json",
 );
+const nextDirectory = path.dirname(nextPackage);
+const styledJsxPackage = path.join(
+	standaloneApp,
+	"node_modules",
+	"styled-jsx",
+	"package.json",
+);
 
 if (!existsSync(serverEntry)) {
 	throw new Error(
@@ -23,23 +30,32 @@ if (!existsSync(serverEntry)) {
 }
 
 console.log("Memasang dependency produksi untuk server Windows standalone...");
-const npmExecutable = process.platform === "win32" ? "npm.cmd" : "npm";
-const install = spawnSync(
-	npmExecutable,
-	[
-		"install",
-		"--omit=dev",
-		"--legacy-peer-deps",
-		"--no-package-lock",
-		"--no-audit",
-		"--no-fund",
-	],
-	{
-		cwd: standaloneApp,
-		stdio: "inherit",
-		windowsHide: true,
-	},
-);
+// Next's standalone trace can retain Bun's workspace junction for `next`. That
+// link works inside the repository but breaks after the app is installed. Make
+// npm install a physical, self-contained copy instead.
+if (existsSync(nextDirectory) && lstatSync(nextDirectory).isSymbolicLink()) {
+	rmSync(nextDirectory, { force: true, recursive: true });
+}
+const npmArgs = [
+	"install",
+	"--omit=dev",
+	"--legacy-peer-deps",
+	"--no-package-lock",
+	"--no-audit",
+	"--no-fund",
+	"--workspaces=false",
+];
+const npmExecutable =
+	process.platform === "win32" ? process.env.ComSpec || "cmd.exe" : "npm";
+const npmExecutableArgs =
+	process.platform === "win32"
+		? ["/d", "/s", "/c", `npm.cmd ${npmArgs.join(" ")}`]
+		: npmArgs;
+const install = spawnSync(npmExecutable, npmExecutableArgs, {
+	cwd: standaloneApp,
+	stdio: "inherit",
+	windowsHide: true,
+});
 
 if (install.error) throw install.error;
 if (install.status !== 0) {
@@ -49,6 +65,14 @@ if (install.status !== 0) {
 if (!existsSync(nextPackage)) {
 	throw new Error(
 		`Validasi gagal: runtime Next.js tidak ditemukan di ${nextPackage}.`,
+	);
+}
+if (lstatSync(nextDirectory).isSymbolicLink()) {
+	throw new Error(`Validasi gagal: runtime Next.js masih berupa link.`);
+}
+if (!existsSync(styledJsxPackage)) {
+	throw new Error(
+		`Validasi gagal: dependency styled-jsx tidak ditemukan di ${styledJsxPackage}.`,
 	);
 }
 

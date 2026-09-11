@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,13 +15,28 @@ if (!existsSync(serverEntry)) {
 	throw new Error(`Server hasil packaging tidak ditemukan di ${serverEntry}.`);
 }
 
-const require = createRequire(import.meta.url);
+const packagedRequire = createRequire(path.join(packagedApp, "package.json"));
+const runtimePackages = [
+	"next/package.json",
+	"@next/env/package.json",
+	"@swc/helpers/package.json",
+	"styled-jsx/package.json",
+];
 try {
-	require.resolve("next/package.json", { paths: [packagedApp] });
+	for (const packageName of runtimePackages)
+		packagedRequire.resolve(packageName);
+	packagedRequire("next");
 } catch (error) {
 	throw new Error(
 		`Installer tidak memiliki runtime Next.js yang dapat digunakan dari ${packagedApp}.`,
 		{ cause: error },
+	);
+}
+
+const packagedNext = path.join(packagedApp, "node_modules", "next");
+if (lstatSync(packagedNext).isSymbolicLink()) {
+	throw new Error(
+		`Installer masih merujuk junction Next.js dari workspace: ${packagedNext}.`,
 	);
 }
 

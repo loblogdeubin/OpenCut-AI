@@ -1,4 +1,6 @@
 export const EDIT_PLAN_SCHEMA_VERSION = "1.0" as const;
+export const AUDIO_PLAN_SCHEMA_VERSION = "1.0" as const;
+export const AUDIO_CATALOG_SCHEMA_VERSION = "1.0" as const;
 export const PROJECT_CONTENT_SCHEMA_VERSION = "1.0" as const;
 
 export type JsonValue =
@@ -155,6 +157,73 @@ export interface EditPlanV1 {
 	baseTimelineHash: string;
 	operations: EditOperationV1[];
 }
+
+export interface AudioCatalogV1 {
+	schemaVersion: typeof AUDIO_CATALOG_SCHEMA_VERSION;
+	catalogId: string;
+	revision: number;
+	assets: AudioCatalogAssetV1[];
+}
+
+export interface AudioCatalogAssetV1 {
+	id: string;
+	/** Null during preflight; resolved to project media before apply. */
+	mediaId: string | null;
+	kind: "music" | "sound-effect" | "transition";
+	durationTicks: number;
+	license: AudioLicenseV1;
+}
+
+export interface AudioLicenseV1 {
+	licenseId: string;
+	licenseName: string;
+	sourceUrl: string;
+	licenseUrl: string;
+	creator: string;
+	attributionRequired: boolean;
+	attributionText: string | null;
+	commercialUseAllowed: boolean;
+	derivativeUseAllowed: boolean;
+	reviewStatus: "verified" | "review-needed";
+	reviewedAt: string | null;
+}
+
+export interface AudioDuckingV1 {
+	enabled: boolean;
+	targetGainDb: number;
+	attackTicks: number;
+	releaseTicks: number;
+	dialogueTrackIds: string[];
+}
+
+export type AudioOperationV1 = {
+	type: "insert_catalog_audio";
+	operationId: string;
+	resultElementId: string;
+	catalogAssetId: string;
+	targetTrackId: string;
+	timelineStartTicks: number;
+	sourceStartTicks: number;
+	durationTicks: number;
+	gainDb: number;
+	fadeInTicks: number;
+	fadeOutTicks: number;
+	ducking: AudioDuckingV1 | null;
+};
+
+export interface AudioPlanV1 {
+	schemaVersion: typeof AUDIO_PLAN_SCHEMA_VERSION;
+	planId: string;
+	idempotencyKey: string;
+	projectId: string;
+	baseProjectRevision: number;
+	baseTimelineHash: string;
+	catalogId: string;
+	catalogRevision: number;
+	operations: AudioOperationV1[];
+}
+
+export type AudioPlanValidationPhaseV1 = "preflight" | "ready_to_apply";
 
 export interface ValidationErrorV1 {
 	code: string;

@@ -32,6 +32,7 @@ import {
 	type BridgeTranscript,
 } from "@/ai/chatgpt-bridge";
 import type { EditPlanV1 } from "@/ai/editor-adapter";
+import { AudioDirectorPanel } from "@/ai/components/audio-director-panel";
 
 const EXAMPLE_PROMPT =
 	"Gabungkan semua footage, potong bagian diam lebih dari 2 detik, dan buat format vertikal 9:16.";
@@ -594,6 +595,7 @@ export function AiPromptPanel() {
 						</Button>
 					)}
 				</div>
+				<AudioDirectorPanel prompt={prompt} transcripts={transcripts} />
 				<Button
 					className="w-full"
 					onClick={() => void createPlan()}

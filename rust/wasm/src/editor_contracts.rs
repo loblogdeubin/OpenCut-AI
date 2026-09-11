@@ -1,8 +1,9 @@
 #![cfg(target_arch = "wasm32")]
 
 use editor_contracts::{
-    AudibleRangeV1, DetectAudibleRangesV1Options, EditPlanV1, MediaChecksum, ProjectContentV1,
-    ProjectSnapshotV1, ValidationResult, detect_audible_ranges, hash_project_content,
+    AudibleRangeV1, AudioCatalogV1, AudioPlanV1, AudioPlanValidationPhaseV1,
+    DetectAudibleRangesV1Options, EditPlanV1, MediaChecksum, ProjectContentV1, ProjectSnapshotV1,
+    ValidationResult, detect_audible_ranges, hash_project_content, validate_audio_plan,
     validate_edit_plan,
 };
 use serde::{Deserialize, Serialize};
@@ -48,6 +49,15 @@ struct HashProjectContentV1Options {
 struct ValidateEditPlanV1Options {
     snapshot: ProjectSnapshotV1,
     plan: EditPlanV1,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ValidateAudioPlanV1Options {
+    snapshot: ProjectSnapshotV1,
+    catalog: AudioCatalogV1,
+    plan: AudioPlanV1,
+    phase: AudioPlanValidationPhaseV1,
 }
 
 #[derive(Serialize)]
@@ -144,6 +154,32 @@ pub fn validate_edit_plan_v1(options: JsValue) -> Result<JsValue, JsValue> {
     serialize_result(&ValidateEditPlanV1Result {
         ok: true,
         validation: Some(validate_edit_plan(&options.snapshot, &options.plan)),
+        errors: Vec::new(),
+    })
+}
+
+/// Validates a licensed catalog audio plan against immutable project and catalog inputs.
+#[wasm_bindgen(js_name = validateAudioPlanV1)]
+pub fn validate_audio_plan_v1(options: JsValue) -> Result<JsValue, JsValue> {
+    let options = match serde_wasm_bindgen::from_value::<ValidateAudioPlanV1Options>(options) {
+        Ok(options) => options,
+        Err(error) => {
+            return serialize_result(&ValidateEditPlanV1Result {
+                ok: false,
+                validation: None,
+                errors: vec![boundary_error("INVALID_ARGUMENT", error)],
+            });
+        }
+    };
+
+    serialize_result(&ValidateEditPlanV1Result {
+        ok: true,
+        validation: Some(validate_audio_plan(
+            &options.snapshot,
+            &options.catalog,
+            &options.plan,
+            options.phase,
+        )),
         errors: Vec::new(),
     })
 }

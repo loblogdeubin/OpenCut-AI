@@ -27,6 +27,8 @@ type InsertElementPlacement =
 export interface InsertElementParams {
 	element: CreateTimelineElement;
 	placement: InsertElementPlacement;
+	/** Optional validated ID for deterministic external plans. */
+	elementId?: string;
 }
 
 export class InsertElementCommand extends Command {
@@ -34,9 +36,9 @@ export class InsertElementCommand extends Command {
 	private savedState: SceneTracks | null = null;
 	private targetTrackId: string | null = null;
 
-	constructor({ element, placement }: InsertElementParams) {
+	constructor({ element, placement, elementId }: InsertElementParams) {
 		super();
-		this.elementId = generateUUID();
+		this.elementId = elementId ?? generateUUID();
 		this.element = element;
 		this.placement = placement;
 	}
