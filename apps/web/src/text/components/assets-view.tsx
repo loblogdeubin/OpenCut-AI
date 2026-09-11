@@ -7,6 +7,7 @@ import { useEditor } from "@/editor/use-editor";
 import { DEFAULTS } from "@/timeline/defaults";
 import { buildTextElement } from "@/timeline/element-utils";
 import type { TextElement } from "@/timeline";
+import { useElementSelection } from "@/timeline/hooks/element/use-element-selection";
 import type { MediaTime } from "@/wasm";
 import { cn } from "@/utils/ui";
 import { toast } from "sonner";
@@ -19,28 +20,25 @@ import {
 
 export function TextView() {
 	const editor = useEditor();
-	const selectedText = useEditor((currentEditor) =>
-		currentEditor.timeline
-			.getElementsWithTracks({
-				elements: currentEditor.selection.getSelectedElements(),
-			})
-			.filter(
-				(entry): entry is typeof entry & { element: TextElement } =>
-					entry.element.type === "text",
-			)
-			.map(({ track, element }) => ({ trackId: track.id, element })),
+	const { selectedElements } = useElementSelection();
+	const activeScene = useEditor((currentEditor) =>
+		currentEditor.scenes.getActiveSceneOrNull(),
 	);
-	const subtitles = useEditor((currentEditor) => {
-		const scene = currentEditor.scenes.getActiveSceneOrNull();
-		if (!scene) return [];
-		return scene.tracks.overlay.flatMap((track) =>
+	const selectedText = editor.timeline
+		.getElementsWithTracks({ elements: selectedElements })
+		.filter(
+			(entry): entry is typeof entry & { element: TextElement } =>
+				entry.element.type === "text",
+		)
+		.map(({ track, element }) => ({ trackId: track.id, element }));
+	const subtitles =
+		activeScene?.tracks.overlay.flatMap((track) =>
 			track.type !== "text"
 				? []
 				: track.elements
 						.filter((element) => isSubtitleTextElement({ element }))
 						.map((element) => ({ trackId: track.id, element })),
-		);
-	});
+		) ?? [];
 
 	const handleAddToTimeline = ({ currentTime }: { currentTime: MediaTime }) => {
 		const activeScene = editor.scenes.getActiveScene();
