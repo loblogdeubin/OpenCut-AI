@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use bytemuck::{Pod, Zeroable};
 use gpu::{FULLSCREEN_SHADER_SOURCE, GpuContext};
 use thiserror::Error;
+use wgpu::util::DeviceExt;
 
 use crate::{EffectPass, UniformValue};
 
@@ -302,11 +303,14 @@ impl EffectPipeline {
                             },
                         ],
                     });
-            let uniform_buffer = context.create_buffer_with_data(
-                "effects-uniform-buffer",
-                bytemuck::bytes_of(&pack_effect_uniforms(pass, width, height)?),
-                wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            );
+            let uniform_buffer =
+                context
+                    .device()
+                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("effects-uniform-buffer"),
+                        contents: bytemuck::bytes_of(&pack_effect_uniforms(pass, width, height)?),
+                        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                    });
             let uniform_bind_group =
                 context
                     .device()
