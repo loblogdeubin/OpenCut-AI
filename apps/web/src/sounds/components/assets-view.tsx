@@ -516,23 +516,36 @@ export function AudioItem({ sound, isPlaying, onPlay }: AudioItemProps) {
 	const { addSoundToTimeline, isSoundSaved, toggleSavedSound } =
 		useSoundsStore();
 	const isSaved = isSoundSaved({ soundId: sound.id });
+	const [pendingAction, setPendingAction] = useState<"add" | "save" | null>(
+		null,
+	);
 
 	const handleClick = () => {
 		onPlay({ sound });
 	};
 
-	const handleSaveClick = ({
+	const handleSaveClick = async ({
 		stopPropagation,
 	}: React.MouseEvent<HTMLButtonElement>) => {
 		stopPropagation();
-		toggleSavedSound({ soundEffect: sound });
+		setPendingAction("save");
+		try {
+			await toggleSavedSound({ soundEffect: sound });
+		} finally {
+			setPendingAction(null);
+		}
 	};
 
 	const handleAddToTimeline = async ({
 		stopPropagation,
 	}: React.MouseEvent<HTMLButtonElement>) => {
 		stopPropagation();
-		await addSoundToTimeline({ sound });
+		setPendingAction("add");
+		try {
+			await addSoundToTimeline({ sound });
+		} finally {
+			setPendingAction(null);
+		}
 	};
 
 	return (
@@ -565,6 +578,7 @@ export function AudioItem({ sound, isPlaying, onPlay }: AudioItemProps) {
 					size="icon"
 					className="text-muted-foreground hover:text-foreground w-auto !opacity-100"
 					onClick={handleAddToTimeline}
+					disabled={pendingAction !== null}
 					title="Add to timeline"
 				>
 					<HugeiconsIcon icon={PlusSignIcon} />
@@ -578,6 +592,7 @@ export function AudioItem({ sound, isPlaying, onPlay }: AudioItemProps) {
 							: "text-muted-foreground"
 					}`}
 					onClick={handleSaveClick}
+					disabled={pendingAction !== null}
 					title={isSaved ? "Remove from saved" : "Save sound"}
 				>
 					<HugeiconsIcon

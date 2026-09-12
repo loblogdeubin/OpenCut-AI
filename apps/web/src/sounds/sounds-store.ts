@@ -150,6 +150,7 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 
 			const savedSoundsData = await storageService.loadSavedSounds();
 			set({ savedSounds: savedSoundsData.sounds });
+			toast.success("Ditambahkan ke favorit");
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error ? error.message : "Failed to save sound";
@@ -166,6 +167,7 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 			set((state) => ({
 				savedSounds: state.savedSounds.filter((sound) => sound.id !== soundId),
 			}));
+			toast.success("Dihapus dari favorit");
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error ? error.message : "Failed to remove sound";
@@ -217,7 +219,8 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 			const editor = EditorCore.getInstance();
 			const currentTime = editor.playback.getCurrentTime();
 
-			const response = await fetch(audioUrl);
+			const localAudioUrl = `/api/sounds/audio?url=${encodeURIComponent(audioUrl)}`;
+			const response = await fetch(localAudioUrl);
 			if (!response.ok)
 				throw new Error(`Failed to download audio: ${response.statusText}`);
 
@@ -226,7 +229,7 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 			const buffer = await audioContext.decodeAudioData(arrayBuffer);
 
 			const element = buildLibraryAudioElement({
-				sourceUrl: audioUrl,
+				sourceUrl: localAudioUrl,
 				name: sound.name,
 				duration: mediaTimeFromSeconds({ seconds: sound.duration }),
 				startTime: currentTime,
@@ -237,6 +240,7 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 				placement: { mode: "auto", trackType: "audio" },
 				element,
 			});
+			toast.success(`“${sound.name}” ditambahkan di posisi playhead`);
 			return true;
 		} catch (error) {
 			console.error("Failed to add sound to timeline:", error);
