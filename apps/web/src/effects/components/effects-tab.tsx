@@ -26,6 +26,8 @@ import {
 import { cn } from "@/utils/ui";
 import { Separator } from "@/components/ui/separator";
 import { useAssetsPanelStore } from "@/components/editor/panels/assets/assets-panel-store";
+import { analyzeCurrentPreviewFrame } from "@/effects/color-analysis";
+import { toast } from "sonner";
 
 export function StandaloneEffectTab({
 	element,
@@ -140,6 +142,26 @@ export function ClipEffectsTab({
 		setDropIndex(null);
 	};
 
+	const handleAutoCorrect = async ({ effect }: { effect: Effect }) => {
+		try {
+			const params = await analyzeCurrentPreviewFrame();
+			editor.timeline.updateElements({
+				updates: [{
+					trackId,
+					elementId: element.id,
+					patch: {
+						effects: effects.map((item) =>
+							item.id === effect.id ? { ...item, params: { ...item.params, ...params } } : item,
+						),
+					},
+				}],
+			});
+			toast.success("Smart Color analyzed from the current frame");
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : "Could not analyze the preview frame");
+		}
+	};
+
 	return (
 		<div className="flex flex-col h-full">
 			<div className="border-b px-3.5 h-11 shrink-0 flex items-center">
@@ -193,6 +215,7 @@ export function ClipEffectsTab({
 											effectId: effect.id,
 										})
 									}
+									onAutoCorrect={effect.type === "color-correction" ? () => handleAutoCorrect({ effect }) : undefined}
 								/>
 							</li>
 						);
@@ -237,6 +260,7 @@ function EffectSection({
 	onCommit,
 	onToggle,
 	onRemove,
+	onAutoCorrect,
 }: {
 	effect: Effect;
 	renderParams: ParamValues;
@@ -244,6 +268,7 @@ function EffectSection({
 	onCommit: () => void;
 	onToggle?: () => void;
 	onRemove?: () => void;
+	onAutoCorrect?: () => void | Promise<void>;
 }) {
 	const definition = effectsRegistry.get(effect.type);
 
@@ -288,6 +313,15 @@ function EffectSection({
 			<SectionContent
 				className={cn("p-0", onToggle && !effect.enabled && "opacity-50")}
 			>
+				{onAutoCorrect && (
+					<div className="flex flex-col gap-2 px-4 pb-3">
+						<Button size="sm" className="w-full" onClick={onAutoCorrect}>
+							<HugeiconsIcon icon={MagicWand05Icon} />
+							Auto Correct
+						</Button>
+						<p className="text-xs text-muted-foreground">Analyzes the current frame; every value stays editable.</p>
+					</div>
+				)}
 				<SectionFields>
 					{definition.params.map((param) => (
 						<div key={param.key} className="flex flex-col gap-3.5">

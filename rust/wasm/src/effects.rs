@@ -11,6 +11,12 @@ use crate::gpu::{
     render_texture_to_canvas, with_gpu_runtime,
 };
 
+#[wasm_bindgen(js_name = analyzeColorSamples)]
+pub fn analyze_color_samples(rgba: &[u8]) -> Result<JsValue, JsValue> {
+    serde_wasm_bindgen::to_value(&effects::suggest_color_correction(rgba))
+        .map_err(|error| JsValue::from_str(&error.to_string()))
+}
+
 struct ApplyEffectPassesOptions {
     source: wgpu::web_sys::OffscreenCanvas,
     width: u32,

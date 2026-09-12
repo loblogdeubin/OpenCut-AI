@@ -12,6 +12,7 @@ import {
 	ZERO_MEDIA_TIME,
 } from "@/wasm";
 import { toast } from "sonner";
+import { TransitionSoundsView } from "@/sounds/components/transition-sounds-view";
 
 type TransitionPreset =
 	| "fade-in"
@@ -139,6 +140,9 @@ export function TransitionsView() {
 						</span>
 					</Button>
 				))}
+			</div>
+			<div className="mt-5 border-t pt-1">
+				<TransitionSoundsView />
 			</div>
 		</PanelView>
 	);

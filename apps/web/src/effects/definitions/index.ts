@@ -1,7 +1,15 @@
 import { effectsRegistry } from "../registry";
 import { blurEffectDefinition } from "./blur";
+import { colorCorrectionEffectDefinition } from "./color-correction";
+import { backgroundRemoverEffectDefinition } from "./background-remover";
+import { aiVideoBackgroundRemoverEffectDefinition } from "./ai-video-background-remover";
 
-const defaultEffects = [blurEffectDefinition];
+const defaultEffects = [
+	blurEffectDefinition,
+	colorCorrectionEffectDefinition,
+	backgroundRemoverEffectDefinition,
+	aiVideoBackgroundRemoverEffectDefinition,
+];
 
 export function registerDefaultEffects(): void {
 	for (const definition of defaultEffects) {

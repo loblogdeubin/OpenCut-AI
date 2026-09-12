@@ -15,6 +15,7 @@ import { TextView } from "@/text/components/assets-view";
 import { EffectsView } from "@/effects/components/assets-view";
 import { AiPromptPanel } from "@/ai/components/prompt-panel";
 import { TransitionsView } from "@/transitions/components/assets-view";
+import { TemplatesView } from "@/templates/components/assets-view";
 
 export function AssetsPanel() {
 	const { activeTab } = useAssetsPanelStore();
@@ -22,6 +23,7 @@ export function AssetsPanel() {
 	const viewMap: Record<Tab, React.ReactNode> = {
 		media: <MediaView />,
 		ai: <AiPromptPanel />,
+		templates: <TemplatesView />,
 		sounds: <SoundsView />,
 		text: <TextView />,
 		stickers: <StickersView />,

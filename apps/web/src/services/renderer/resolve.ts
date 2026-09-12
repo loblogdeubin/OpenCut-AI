@@ -39,6 +39,7 @@ import { ImageNode, loadImageSource } from "./nodes/image-node";
 import { StickerNode, loadStickerSource } from "./nodes/sticker-node";
 import { TextNode, type ResolvedTextNodeState } from "./nodes/text-node";
 import { VideoNode } from "./nodes/video-node";
+import { removeVideoFrameBackground } from "@/background-removal/video-frame-remover";
 import type {
 	ResolvedVisualNodeState,
 	ResolvedVisualSourceNodeState,
@@ -221,11 +222,29 @@ async function resolveVideoNode({
 		return null;
 	}
 
+	const aiRemoval = node.params.effects?.find(
+		(effect) => effect.enabled && effect.type === "ai-video-background-remover",
+	);
+	const resolvedSource = aiRemoval
+		? await removeVideoFrameBackground({
+				mediaId: node.params.mediaId,
+				timeSeconds: mediaTimeToSeconds({
+					time: roundMediaTime({ time: sourceTimeTicks }),
+				}),
+				source: frame.canvas,
+				quality:
+					aiRemoval.params.quality === "draft" ||
+					aiRemoval.params.quality === "quality"
+						? aiRemoval.params.quality
+						: "balanced",
+			})
+		: frame.canvas;
+
 	return {
 		...visualState,
-		source: frame.canvas,
-		sourceWidth: frame.canvas.width,
-		sourceHeight: frame.canvas.height,
+		source: resolvedSource,
+		sourceWidth: resolvedSource.width,
+		sourceHeight: resolvedSource.height,
 	};
 }
 

@@ -12,3 +12,4 @@ bytemuck = { version = "1.25.0", features = ["derive"] }
 gpu = { version = "0.1.0", path = "../gpu" }
 thiserror = "2.0.18"
 wgpu = "29.0.1"
+serde = { version = "1.0.228", features = ["derive"] }

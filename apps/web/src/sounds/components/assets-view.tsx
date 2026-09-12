@@ -506,13 +506,13 @@ function SavedSoundsView() {
 	);
 }
 
-interface AudioItemProps {
+export interface AudioItemProps {
 	sound: SoundEffect;
 	isPlaying: boolean;
 	onPlay: ({ sound }: { sound: SoundEffect }) => void;
 }
 
-function AudioItem({ sound, isPlaying, onPlay }: AudioItemProps) {
+export function AudioItem({ sound, isPlaying, onPlay }: AudioItemProps) {
 	const { addSoundToTimeline, isSoundSaved, toggleSavedSound } =
 		useSoundsStore();
 	const isSaved = isSoundSaved({ soundId: sound.id });

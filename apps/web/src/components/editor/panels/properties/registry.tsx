@@ -23,11 +23,14 @@ import {
 	DashboardSpeed02Icon,
 } from "@hugeicons/core-free-icons";
 import { ElementParamsTab } from "./components/element-params-tab";
+import { MediaTransformTab } from "./components/media-transform-tab";
 import { ClipEffectsTab, StandaloneEffectTab } from "@/effects/components/effects-tab";
 import { MasksTab } from "@/masks/components/masks-tab";
 import { SpeedTab } from "@/speed/components/speed-tab";
 import { GraphicTab } from "@/graphics/components/graphic-tab";
 import { OcShapesIcon } from "@/components/icons";
+import { TrackingTab } from "@/tracking/components/tracking-tab";
+import { BackgroundRemovalTab } from "@/background-removal/components/background-removal-tab";
 
 const TRANSFORM_PARAM_KEYS = [
 	"transform.positionX",
@@ -77,14 +80,18 @@ export type ElementPropertiesConfig = {
 
 function buildTransformTab({
 	element,
+	mediaAsset,
 }: {
 	element: VisualElement;
+	mediaAsset?: MediaAsset;
 }): PropertiesTabDef {
 	return {
 		id: "transform",
 		label: "Transform",
 		icon: <HugeiconsIcon icon={ArrowExpandIcon} size={16} />,
-		content: ({ trackId }) => (
+		content: ({ trackId }) => element.type === "video" || element.type === "image" ? (
+			<MediaTransformTab element={element} trackId={trackId} mediaAsset={mediaAsset} />
+		) : (
 			<ElementParamsTab
 				element={element}
 				trackId={trackId}
@@ -112,6 +119,24 @@ function buildBlendingTab({
 				sectionKey="blending"
 			/>
 		),
+	};
+}
+
+function buildTrackingTab({ element }: { element: VideoElement }): PropertiesTabDef {
+	return {
+		id: "tracking",
+		label: "Tracking",
+		icon: <HugeiconsIcon icon={MagicWand05Icon} size={16} />,
+		content: ({ trackId }) => <TrackingTab element={element} trackId={trackId} />,
+	};
+}
+
+function buildBackgroundRemovalTab({ element }: { element: ImageElement }): PropertiesTabDef {
+	return {
+		id: "background-removal",
+		label: "Remove BG",
+		icon: <HugeiconsIcon icon={MagicWand05Icon} size={16} />,
+		content: ({ trackId }) => <BackgroundRemovalTab element={element} trackId={trackId} />,
 	};
 }
 
@@ -246,7 +271,8 @@ function getVideoConfig({
 	return {
 		defaultTab: "transform",
 		tabs: [
-			buildTransformTab({ element }),
+			buildTransformTab({ element, mediaAsset }),
+			buildTrackingTab({ element }),
 			...(showAudioTab ? [buildAudioTab({ element })] : []),
 			buildSpeedTab({ element }),
 			buildBlendingTab({ element }),
@@ -258,13 +284,16 @@ function getVideoConfig({
 
 function getImageConfig({
 	element,
+	mediaAsset,
 }: {
 	element: ImageElement;
+	mediaAsset: MediaAsset | undefined;
 }): ElementPropertiesConfig {
 	return {
 		defaultTab: "transform",
 		tabs: [
-			buildTransformTab({ element }),
+			buildTransformTab({ element, mediaAsset }),
+			buildBackgroundRemovalTab({ element }),
 			buildBlendingTab({ element }),
 			buildMasksTab({ element }),
 			buildClipEffectsTab({ element }),
@@ -340,8 +369,10 @@ export function getPropertiesConfig({
 			const mediaAsset = mediaAssets.find((a) => a.id === element.mediaId);
 			return getVideoConfig({ element, mediaAsset });
 		}
-		case "image":
-			return getImageConfig({ element });
+		case "image": {
+			const mediaAsset = mediaAssets.find((a) => a.id === element.mediaId);
+			return getImageConfig({ element, mediaAsset });
+		}
 		case "sticker":
 			return getStickerConfig({ element });
 		case "graphic":
