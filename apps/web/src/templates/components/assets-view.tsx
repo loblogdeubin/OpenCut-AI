@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PanelView } from "@/components/editor/panels/assets/views/base-panel";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,12 @@ import {
 } from "@/timeline/element-utils";
 import { useElementSelection } from "@/timeline/hooks/element/use-element-selection";
 import { processMediaAssets } from "@/media/processing";
+import {
+	deleteTemplatePreset,
+	loadTemplatePresets,
+	saveTemplatePreset,
+	type StoredTemplatePreset,
+} from "@/templates/preset-storage";
 
 const TEMPLATE_SIZE = { width: 1080, height: 1920 } as const;
 
@@ -33,6 +39,23 @@ export function TemplatesView() {
 		"photo",
 	);
 	const imageInputRef = useRef<HTMLInputElement>(null);
+	const presetInputRef = useRef<HTMLInputElement>(null);
+	const [presets, setPresets] = useState<StoredTemplatePreset[]>([]);
+	const [presetUrls, setPresetUrls] = useState<Record<string, string>>({});
+
+	useEffect(() => {
+		void loadTemplatePresets()
+			.then(setPresets)
+			.catch(() => toast.error("Preset gambar tidak dapat dimuat"));
+	}, []);
+
+	useEffect(() => {
+		const urls = Object.fromEntries(
+			presets.map((preset) => [preset.id, URL.createObjectURL(preset.file)]),
+		);
+		setPresetUrls(urls);
+		return () => Object.values(urls).forEach((url) => URL.revokeObjectURL(url));
+	}, [presets]);
 
 	const selectedRef =
 		selectedElements.length === 1 ? selectedElements[0] : null;
@@ -197,6 +220,30 @@ export function TemplatesView() {
 		toast.success("Teks ditambahkan sebagai layer editable");
 	};
 
+	const storePreset = async ({ file }: { file: File }) => {
+		if (!file.type.startsWith("image/")) {
+			toast.error("Preset harus berupa gambar");
+			return;
+		}
+		try {
+			const preset = await saveTemplatePreset({ file });
+			setPresets((current) => [preset, ...current]);
+			toast.success("Gambar disimpan sebagai preset");
+		} catch {
+			toast.error("Gagal menyimpan preset gambar");
+		}
+	};
+
+	const removePreset = async ({ id }: { id: string }) => {
+		try {
+			await deleteTemplatePreset({ id });
+			setPresets((current) => current.filter((preset) => preset.id !== id));
+			toast.success("Preset dihapus");
+		} catch {
+			toast.error("Preset tidak dapat dihapus");
+		}
+	};
+
 	return (
 		<PanelView title="Templates" contentClassName="p-3">
 			<input
@@ -215,6 +262,17 @@ export function TemplatesView() {
 									: "Gagal menambahkan gambar",
 							),
 						);
+				}}
+			/>
+			<input
+				ref={presetInputRef}
+				type="file"
+				accept="image/*"
+				className="hidden"
+				onChange={(event) => {
+					const file = event.target.files?.[0];
+					event.target.value = "";
+					if (file) void storePreset({ file });
 				}}
 			/>
 			<div className="overflow-hidden rounded-xl border bg-card">
@@ -284,6 +342,84 @@ export function TemplatesView() {
 						</p>
 					</div>
 				</div>
+			</div>
+			<div className="mt-3 space-y-3 rounded-xl border bg-card p-3">
+				<div className="flex items-center justify-between gap-2">
+					<div>
+						<p className="text-sm font-medium">Preset gambar saya</p>
+						<p className="text-[11px] text-muted-foreground">
+							Tersimpan lokal di perangkat ini.
+						</p>
+					</div>
+					<Button
+						size="sm"
+						variant="outline"
+						onClick={() => presetInputRef.current?.click()}
+					>
+						Simpan preset
+					</Button>
+				</div>
+				{presets.length === 0 ? (
+					<p className="rounded-lg bg-muted p-3 text-center text-xs text-muted-foreground">
+						Belum ada preset personal.
+					</p>
+				) : (
+					<div className="grid grid-cols-2 gap-2">
+						{presets.map((preset) => (
+							<div
+								key={preset.id}
+								className="overflow-hidden rounded-lg border"
+							>
+								<div className="relative aspect-square bg-muted">
+									{presetUrls[preset.id] && (
+										<Image
+											src={presetUrls[preset.id]}
+											alt={preset.name}
+											fill
+											className="object-contain"
+											unoptimized
+										/>
+									)}
+								</div>
+								<div className="space-y-2 p-2">
+									<p
+										className="truncate text-xs font-medium"
+										title={preset.name}
+									>
+										{preset.name}
+									</p>
+									<Button
+										size="sm"
+										className="w-full"
+										disabled={!selectedVideo}
+										onClick={() =>
+											void attachImage({
+												file: preset.file,
+												kind: "photo",
+											}).catch((error) =>
+												toast.error(
+													error instanceof Error
+														? error.message
+														: "Gagal attach preset",
+												),
+											)
+										}
+									>
+										Attach
+									</Button>
+									<Button
+										size="sm"
+										variant="ghost"
+										className="w-full text-destructive"
+										onClick={() => void removePreset({ id: preset.id })}
+									>
+										Hapus
+									</Button>
+								</div>
+							</div>
+						))}
+					</div>
+				)}
 			</div>
 		</PanelView>
 	);
