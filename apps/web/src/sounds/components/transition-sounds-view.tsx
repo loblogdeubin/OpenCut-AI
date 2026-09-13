@@ -12,6 +12,17 @@ const CATEGORIES = [
 	{ id: "impact", label: "Impact", query: "cinematic impact transition" },
 	{ id: "riser", label: "Riser", query: "riser transition" },
 	{ id: "glitch", label: "Glitch", query: "glitch transition" },
+	{
+		id: "cinematic",
+		label: "Cinematic",
+		query: "cinematic transition sound effect",
+	},
+	{ id: "trailer", label: "Trailer", query: "movie trailer transition boom" },
+	{ id: "logo", label: "Logo Reveal", query: "logo reveal audio sting" },
+	{ id: "ui", label: "UI", query: "interface ui transition click" },
+	{ id: "horror", label: "Horror", query: "horror suspense transition sting" },
+	{ id: "comedy", label: "Comedy", query: "comedy cartoon transition sound" },
+	{ id: "nature", label: "Nature", query: "nature ambient transition sound" },
 ] as const;
 
 type CategoryId = (typeof CATEGORIES)[number]["id"];

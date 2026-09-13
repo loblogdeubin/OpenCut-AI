@@ -42,6 +42,13 @@ const TRANSITION_SOUND_PRESETS = [
 	{ label: "Click", query: "click transition" },
 	{ label: "Impact", query: "impact transition" },
 	{ label: "Rise", query: "riser transition" },
+	{ label: "Cinematic", query: "cinematic transition sound effect" },
+	{ label: "Trailer", query: "movie trailer transition boom" },
+	{ label: "Logo Reveal", query: "logo reveal audio sting" },
+	{ label: "UI", query: "interface ui transition click" },
+	{ label: "Horror", query: "horror suspense transition sting" },
+	{ label: "Comedy", query: "comedy cartoon transition sound" },
+	{ label: "Nature", query: "nature ambient transition sound" },
 ] as const;
 
 export function SoundsView() {
