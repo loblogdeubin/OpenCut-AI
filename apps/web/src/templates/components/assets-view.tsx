@@ -26,6 +26,14 @@ import {
 } from "@/templates/preset-storage";
 
 const TEMPLATE_SIZE = { width: 1080, height: 1920 } as const;
+type ReplaceableSlot = "photo" | "logo" | "overlay";
+
+const SLOT_NAMES: Record<ReplaceableSlot, string> = {
+	photo: "Rekah slot: photo",
+	logo: "Rekah slot: logo",
+	overlay: "Rekah Studio UGC (brand overlay)",
+};
+const TEXT_SLOT_NAME = "Rekah slot: text";
 
 export function TemplatesView() {
 	const editor = useEditor();
@@ -35,27 +43,17 @@ export function TemplatesView() {
 	);
 	const [isApplying, setIsApplying] = useState(false);
 	const [customText, setCustomText] = useState("Tulis judul di sini");
-	const [pendingImageKind, setPendingImageKind] = useState<"photo" | "logo">(
-		"photo",
-	);
+	const [pendingImageKind, setPendingImageKind] =
+		useState<ReplaceableSlot>("photo");
 	const imageInputRef = useRef<HTMLInputElement>(null);
 	const presetInputRef = useRef<HTMLInputElement>(null);
 	const [presets, setPresets] = useState<StoredTemplatePreset[]>([]);
-	const [presetUrls, setPresetUrls] = useState<Record<string, string>>({});
 
 	useEffect(() => {
 		void loadTemplatePresets()
 			.then(setPresets)
 			.catch(() => toast.error("Preset gambar tidak dapat dimuat"));
 	}, []);
-
-	useEffect(() => {
-		const urls = Object.fromEntries(
-			presets.map((preset) => [preset.id, URL.createObjectURL(preset.file)]),
-		);
-		setPresetUrls(urls);
-		return () => Object.values(urls).forEach((url) => URL.revokeObjectURL(url));
-	}, [presets]);
 
 	const selectedRef =
 		selectedElements.length === 1 ? selectedElements[0] : null;
@@ -64,6 +62,27 @@ export function TemplatesView() {
 		: null;
 	const selectedVideo =
 		selectedEntry?.element.type === "video" ? selectedEntry.element : null;
+
+	const findSlot = ({ kind }: { kind: ReplaceableSlot }) => {
+		if (!selectedVideo) return null;
+		const scene = editor.scenes.getActiveSceneOrNull();
+		if (!scene) return null;
+		const compatibleNames =
+			kind === "photo"
+				? [SLOT_NAMES.photo, "Foto:"]
+				: kind === "logo"
+					? [SLOT_NAMES.logo, "Logo:"]
+					: [SLOT_NAMES.overlay];
+		for (const track of scene.tracks.overlay) {
+			const element = track.elements.find(
+				(candidate) =>
+					candidate.startTime === selectedVideo.startTime &&
+					compatibleNames.some((name) => candidate.name.startsWith(name)),
+			);
+			if (element) return { track, element };
+		}
+		return null;
+	};
 
 	const applyRekahTemplate = async () => {
 		if (!selectedEntry || !selectedVideo) {
@@ -112,17 +131,30 @@ export function TemplatesView() {
 				],
 			});
 
-			const overlay = buildStickerElement({
-				stickerId: REKAH_STUDIO_STICKER_ID,
-				name: "Rekah Studio UGC (brand overlay)",
-				startTime: selectedVideo.startTime,
-				intrinsicWidth: TEMPLATE_SIZE.width,
-				intrinsicHeight: TEMPLATE_SIZE.height,
-			});
-			editor.timeline.insertElement({
-				placement: { mode: "auto", trackType: "graphic" },
-				element: { ...overlay, duration: selectedVideo.duration },
-			});
+			const currentOverlay = findSlot({ kind: "overlay" });
+			if (currentOverlay) {
+				editor.timeline.updateElements({
+					updates: [
+						{
+							trackId: currentOverlay.track.id,
+							elementId: currentOverlay.element.id,
+							patch: { duration: selectedVideo.duration },
+						},
+					],
+				});
+			} else {
+				const overlay = buildStickerElement({
+					stickerId: REKAH_STUDIO_STICKER_ID,
+					name: SLOT_NAMES.overlay,
+					startTime: selectedVideo.startTime,
+					intrinsicWidth: TEMPLATE_SIZE.width,
+					intrinsicHeight: TEMPLATE_SIZE.height,
+				});
+				editor.timeline.insertElement({
+					placement: { mode: "auto", trackType: "graphic" },
+					element: { ...overlay, duration: selectedVideo.duration },
+				});
+			}
 			toast.success("Template Rekah Studio diterapkan");
 		} catch (error) {
 			console.error("Failed to apply Rekah Studio template:", error);
@@ -140,7 +172,7 @@ export function TemplatesView() {
 		return true;
 	};
 
-	const chooseImage = ({ kind }: { kind: "photo" | "logo" }) => {
+	const chooseImage = ({ kind }: { kind: ReplaceableSlot }) => {
 		if (!requireSelectedVideo()) return;
 		setPendingImageKind(kind);
 		imageInputRef.current?.click();
@@ -151,7 +183,7 @@ export function TemplatesView() {
 		kind,
 	}: {
 		file: File;
-		kind: "photo" | "logo";
+		kind: ReplaceableSlot;
 	}) => {
 		if (!selectedVideo) return;
 		const processed = (await processMediaAssets({ files: [file] }))[0];
@@ -163,11 +195,36 @@ export function TemplatesView() {
 			asset: processed,
 		});
 		if (!added) throw new Error("Gambar tidak dapat disimpan");
+		const slot = findSlot({ kind });
+		const slotName = SLOT_NAMES[kind];
+		if (slot?.element.type === "image") {
+			editor.timeline.updateElements({
+				updates: [
+					{
+						trackId: slot.track.id,
+						elementId: slot.element.id,
+						patch: {
+							mediaId: added.id,
+							name: slotName,
+							duration: selectedVideo.duration,
+						},
+					},
+				],
+			});
+			toast.success(
+				`${kind === "overlay" ? "Frame" : kind === "logo" ? "Logo" : "Foto"} diganti`,
+			);
+			return;
+		}
+		if (slot) {
+			editor.timeline.deleteElements({
+				elements: [{ trackId: slot.track.id, elementId: slot.element.id }],
+			});
+		}
 		const element = buildElementFromMedia({
 			mediaId: added.id,
 			mediaType: "image",
-			name:
-				kind === "logo" ? `Logo: ${processed.name}` : `Foto: ${processed.name}`,
+			name: slotName,
 			duration: selectedVideo.duration,
 			startTime: selectedVideo.startTime,
 		});
@@ -178,14 +235,17 @@ export function TemplatesView() {
 				params: {
 					...element.params,
 					"transform.positionX": kind === "logo" ? 320 : 0,
-					"transform.positionY": kind === "logo" ? -720 : 360,
-					"transform.scaleX": kind === "logo" ? 0.28 : 0.5,
-					"transform.scaleY": kind === "logo" ? 0.28 : 0.5,
+					"transform.positionY":
+						kind === "logo" ? -720 : kind === "photo" ? 360 : 0,
+					"transform.scaleX":
+						kind === "logo" ? 0.28 : kind === "photo" ? 0.5 : 1,
+					"transform.scaleY":
+						kind === "logo" ? 0.28 : kind === "photo" ? 0.5 : 1,
 				},
 			},
 		});
 		toast.success(
-			`${kind === "logo" ? "Logo" : "Foto"} ditambahkan sebagai layer editable`,
+			`${kind === "overlay" ? "Frame" : kind === "logo" ? "Logo" : "Foto"} ditambahkan sebagai layer editable`,
 		);
 	};
 
@@ -196,10 +256,35 @@ export function TemplatesView() {
 			toast.error("Isi teks terlebih dahulu");
 			return;
 		}
+		const scene = editor.scenes.getActiveSceneOrNull();
+		const existingText = scene?.tracks.overlay
+			.filter((track) => track.type === "text")
+			.flatMap((track) => track.elements.map((element) => ({ track, element })))
+			.find(
+				({ element }) =>
+					element.name === TEXT_SLOT_NAME &&
+					element.startTime === selectedVideo.startTime,
+			);
+		if (existingText) {
+			editor.timeline.updateElements({
+				updates: [
+					{
+						trackId: existingText.track.id,
+						elementId: existingText.element.id,
+						patch: {
+							duration: selectedVideo.duration,
+							params: { content },
+						},
+					},
+				],
+			});
+			toast.success("Teks template diganti");
+			return;
+		}
 		const element = buildTextElement({
 			startTime: selectedVideo.startTime,
 			raw: {
-				name: "Rekah template text",
+				name: TEXT_SLOT_NAME,
 				duration: selectedVideo.duration,
 				params: {
 					content,
@@ -322,6 +407,14 @@ export function TemplatesView() {
 								Attach logo
 							</Button>
 						</div>
+						<Button
+							variant="outline"
+							size="sm"
+							className="w-full"
+							onClick={() => chooseImage({ kind: "overlay" })}
+						>
+							Replace frame / overlay
+						</Button>
 						<Input
 							value={customText}
 							onChange={(event) => setCustomText(event.target.value)}
@@ -371,15 +464,7 @@ export function TemplatesView() {
 								className="overflow-hidden rounded-lg border"
 							>
 								<div className="relative aspect-square bg-muted">
-									{presetUrls[preset.id] && (
-										<Image
-											src={presetUrls[preset.id]}
-											alt={preset.name}
-											fill
-											className="object-contain"
-											unoptimized
-										/>
-									)}
+									<PresetPreview file={preset.file} name={preset.name} />
 								</div>
 								<div className="space-y-2 p-2">
 									<p
@@ -388,25 +473,44 @@ export function TemplatesView() {
 									>
 										{preset.name}
 									</p>
-									<Button
-										size="sm"
-										className="w-full"
-										disabled={!selectedVideo}
-										onClick={() =>
-											void attachImage({
-												file: preset.file,
-												kind: "photo",
-											}).catch((error) =>
-												toast.error(
-													error instanceof Error
-														? error.message
-														: "Gagal attach preset",
-												),
-											)
-										}
-									>
-										Attach
-									</Button>
+									<div className="grid grid-cols-2 gap-1.5">
+										<Button
+											size="sm"
+											disabled={!selectedVideo}
+											onClick={() =>
+												void attachImage({
+													file: preset.file,
+													kind: "photo",
+												}).catch((error) =>
+													toast.error(
+														error instanceof Error
+															? error.message
+															: "Gagal attach preset",
+													),
+												)
+											}
+										>
+											Foto
+										</Button>
+										<Button
+											size="sm"
+											disabled={!selectedVideo}
+											onClick={() =>
+												void attachImage({
+													file: preset.file,
+													kind: "overlay",
+												}).catch((error) =>
+													toast.error(
+														error instanceof Error
+															? error.message
+															: "Gagal mengganti frame",
+													),
+												)
+											}
+										>
+											Frame
+										</Button>
+									</div>
 									<Button
 										size="sm"
 										variant="ghost"
@@ -422,5 +526,13 @@ export function TemplatesView() {
 				)}
 			</div>
 		</PanelView>
+	);
+}
+
+function PresetPreview({ file, name }: { file: File; name: string }) {
+	const [url] = useState(() => URL.createObjectURL(file));
+	useEffect(() => () => URL.revokeObjectURL(url), [url]);
+	return (
+		<Image src={url} alt={name} fill className="object-contain" unoptimized />
 	);
 }

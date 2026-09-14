@@ -16,6 +16,7 @@ import { EffectsView } from "@/effects/components/assets-view";
 import { AiPromptPanel } from "@/ai/components/prompt-panel";
 import { TransitionsView } from "@/transitions/components/assets-view";
 import { TemplatesView } from "@/templates/components/assets-view";
+import { ColorPresetsView } from "@/color-presets/components/assets-view";
 
 export function AssetsPanel() {
 	const { activeTab } = useAssetsPanelStore();
@@ -24,6 +25,7 @@ export function AssetsPanel() {
 		media: <MediaView />,
 		ai: <AiPromptPanel />,
 		templates: <TemplatesView />,
+		"color-presets": <ColorPresetsView />,
 		sounds: <SoundsView />,
 		text: <TextView />,
 		stickers: <StickersView />,

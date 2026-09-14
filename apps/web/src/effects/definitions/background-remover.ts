@@ -12,7 +12,7 @@ function hexToRgb(value: unknown): number[] {
 
 export const backgroundRemoverEffectDefinition: EffectDefinition = {
 	type: "background-remover",
-	name: "Background Remover (local)",
+	name: "Chroma Key",
 	keywords: ["background", "remove", "green screen", "chroma key"],
 	params: [
 		{
@@ -63,4 +63,3 @@ export const backgroundRemoverEffectDefinition: EffectDefinition = {
 		],
 	},
 };
-

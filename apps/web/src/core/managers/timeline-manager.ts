@@ -63,6 +63,15 @@ import type {
 	PlannedElementMove,
 	PlannedTrackCreation,
 } from "@/timeline/group-move";
+import {
+	applyColorPresetToEffects,
+	isColorPresetTarget,
+	resetColorPresetEffects,
+	setColorPresetIntensityOnEffects,
+	type ColorPresetAdjustments,
+} from "@/color-presets";
+
+type ColorPresetScope = "selected" | "all";
 
 export class TimelineManager {
 	private listeners = new Set<() => void>();
@@ -338,6 +347,169 @@ export class TimelineManager {
 		}
 	}
 
+	applyColorPreset({
+		adjustments,
+		intensity = 100,
+		scope = "selected",
+	}: {
+		adjustments: ColorPresetAdjustments;
+		intensity?: number;
+		scope?: ColorPresetScope;
+	}): number {
+		const targets = this.getColorPresetTargets({ scope });
+		this.updateElements({
+			updates: targets.map(({ trackId, element }) => ({
+				trackId,
+				elementId: element.id,
+				patch: {
+					effects: applyColorPresetToEffects({
+						effects: element.effects,
+						adjustments,
+						intensity,
+					}),
+				},
+			})),
+		});
+		return targets.length;
+	}
+
+	previewColorPreset({
+		adjustments,
+		intensity = 100,
+		scope = "selected",
+	}: {
+		adjustments: ColorPresetAdjustments;
+		intensity?: number;
+		scope?: ColorPresetScope;
+	}): number {
+		const targets = this.getColorPresetTargets({ scope });
+		this.previewElements({
+			updates: targets.map(({ trackId, element }) => ({
+				trackId,
+				elementId: element.id,
+				updates: {
+					effects: applyColorPresetToEffects({
+						effects: element.effects,
+						adjustments,
+						intensity,
+					}),
+				},
+			})),
+		});
+		return targets.length;
+	}
+
+	setColorPresetIntensity({
+		intensity,
+		scope = "selected",
+	}: {
+		intensity: number;
+		scope?: ColorPresetScope;
+	}): number {
+		const targets = this.getColorPresetTargets({ scope }).filter(
+			({ element }) =>
+				element.effects?.some((effect) => effect.type === "color-correction"),
+		);
+		this.updateElements({
+			updates: targets.map(({ trackId, element }) => ({
+				trackId,
+				elementId: element.id,
+				patch: {
+					effects: setColorPresetIntensityOnEffects({
+						effects: element.effects,
+						intensity,
+					}),
+				},
+			})),
+		});
+		return targets.length;
+	}
+
+	previewColorPresetIntensity({
+		intensity,
+		scope = "selected",
+	}: {
+		intensity: number;
+		scope?: ColorPresetScope;
+	}): number {
+		const targets = this.getColorPresetTargets({ scope }).filter(
+			({ element }) =>
+				element.effects?.some((effect) => effect.type === "color-correction"),
+		);
+		this.previewElements({
+			updates: targets.map(({ trackId, element }) => ({
+				trackId,
+				elementId: element.id,
+				updates: {
+					effects: setColorPresetIntensityOnEffects({
+						effects: element.effects,
+						intensity,
+					}),
+				},
+			})),
+		});
+		return targets.length;
+	}
+
+	resetColorPreset({
+		scope = "selected",
+	}: {
+		scope?: ColorPresetScope;
+	} = {}): number {
+		const targets = this.getColorPresetTargets({ scope }).filter(
+			({ element }) =>
+				element.effects?.some((effect) => effect.type === "color-correction"),
+		);
+		this.updateElements({
+			updates: targets.map(({ trackId, element }) => ({
+				trackId,
+				elementId: element.id,
+				patch: {
+					effects: resetColorPresetEffects({ effects: element.effects }),
+				},
+			})),
+		});
+		return targets.length;
+	}
+
+	private getColorPresetTargets({ scope }: { scope: ColorPresetScope }): Array<{
+		trackId: string;
+		element: Extract<TimelineElement, { type: "video" | "image" }>;
+	}> {
+		const scene = this.editor.scenes.getActiveSceneOrNull();
+		if (!scene) return [];
+
+		const refs =
+			scope === "selected"
+				? this.editor.selection.getSelectedElements()
+				: [scene.tracks.main, ...scene.tracks.overlay].flatMap((track) =>
+						track.elements.map((element) => ({
+							trackId: track.id,
+							elementId: element.id,
+						})),
+					);
+		const seen = new Set<string>();
+		const result: Array<{
+			trackId: string;
+			element: Extract<TimelineElement, { type: "video" | "image" }>;
+		}> = [];
+
+		for (const ref of refs) {
+			if (
+				seen.has(ref.elementId) ||
+				this.isTrackLocked({ trackId: ref.trackId })
+			) {
+				continue;
+			}
+			const track = this.getTrackById({ trackId: ref.trackId });
+			const element = track?.elements.find(({ id }) => id === ref.elementId);
+			if (!element || !isColorPresetTarget(element)) continue;
+			seen.add(element.id);
+			result.push({ trackId: ref.trackId, element });
+		}
+		return result;
+	}
+
 	addClipEffect({
 		trackId,
 		elementId,
@@ -347,6 +519,7 @@ export class TimelineManager {
 		elementId: string;
 		effectType: string;
 	}): string {
+		if (this.isTrackLocked({ trackId })) return "";
 		const command = new AddClipEffectCommand({
 			trackId,
 			elementId,

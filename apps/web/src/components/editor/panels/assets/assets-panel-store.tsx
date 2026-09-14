@@ -12,6 +12,7 @@ import {
 	Settings01Icon,
 	SlidersHorizontalIcon,
 	ColorsIcon,
+	ColorPickerIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 
@@ -19,6 +20,7 @@ export const TAB_KEYS = [
 	"media",
 	"ai",
 	"templates",
+	"color-presets",
 	"sounds",
 	"text",
 	"stickers",
@@ -51,6 +53,10 @@ export const tabs = {
 	templates: {
 		icon: createHugeiconsIcon({ icon: ColorsIcon }),
 		label: "Templates",
+	},
+	"color-presets": {
+		icon: createHugeiconsIcon({ icon: ColorPickerIcon }),
+		label: "Color Presets",
 	},
 	sounds: {
 		icon: createHugeiconsIcon({ icon: HeadphonesIcon }),

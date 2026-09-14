@@ -24,3 +24,17 @@ pub use masks::*;
 #[cfg(target_arch = "wasm32")]
 pub use perf::*;
 pub use time::*;
+
+#[wasm_bindgen::prelude::wasm_bindgen(js_name = parseLightroomXmp)]
+pub fn parse_lightroom_xmp_js(
+    source_name: &str,
+    xmp: &str,
+) -> Result<wasm_bindgen::JsValue, wasm_bindgen::JsValue> {
+    let parsed = color_presets::parse_lightroom_xmp(color_presets::ParseLightroomXmpOptions {
+        source_name,
+        xmp,
+    })
+    .map_err(|error| wasm_bindgen::JsValue::from_str(&error.to_string()))?;
+    serde_wasm_bindgen::to_value(&parsed)
+        .map_err(|error| wasm_bindgen::JsValue::from_str(&error.to_string()))
+}

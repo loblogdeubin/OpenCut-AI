@@ -2,7 +2,7 @@ import type { EffectDefinition } from "@/effects/types";
 
 export const COLOR_CORRECTION_SHADER = "color-correction";
 
-const number = (value: unknown, fallback: number) =>
+const number = ({ value, fallback }: { value: unknown; fallback: number }) =>
 	typeof value === "number" ? value : Number(value) || fallback;
 
 export const AUTO_COLOR_PARAMS = {
@@ -19,7 +19,7 @@ export const AUTO_COLOR_PARAMS = {
 
 export const colorCorrectionEffectDefinition: EffectDefinition = {
 	type: "color-correction",
-	name: "Smart Color Correction",
+	name: "Smart Color",
 	keywords: ["color", "auto", "exposure", "contrast", "white balance"],
 	params: [
 		{
@@ -116,15 +116,21 @@ export const colorCorrectionEffectDefinition: EffectDefinition = {
 			{
 				shader: COLOR_CORRECTION_SHADER,
 				uniforms: {
-					u_exposure: number(effectParams.exposure, 0),
-					u_contrast: number(effectParams.contrast, 0) / 100,
-					u_highlights: number(effectParams.highlights, 0) / 300,
-					u_shadows: number(effectParams.shadows, 0) / 300,
-					u_temperature: number(effectParams.temperature, 0) / 500,
-					u_tint: number(effectParams.tint, 0) / 500,
-					u_saturation: number(effectParams.saturation, 0) / 100,
-					u_vibrance: number(effectParams.vibrance, 0) / 100,
-					u_intensity: number(effectParams.intensity, 100) / 100,
+					u_exposure: number({ value: effectParams.exposure, fallback: 0 }),
+					u_contrast:
+						number({ value: effectParams.contrast, fallback: 0 }) / 100,
+					u_highlights:
+						number({ value: effectParams.highlights, fallback: 0 }) / 300,
+					u_shadows: number({ value: effectParams.shadows, fallback: 0 }) / 300,
+					u_temperature:
+						number({ value: effectParams.temperature, fallback: 0 }) / 500,
+					u_tint: number({ value: effectParams.tint, fallback: 0 }) / 500,
+					u_saturation:
+						number({ value: effectParams.saturation, fallback: 0 }) / 100,
+					u_vibrance:
+						number({ value: effectParams.vibrance, fallback: 0 }) / 100,
+					u_intensity:
+						number({ value: effectParams.intensity, fallback: 100 }) / 100,
 				},
 			},
 		],

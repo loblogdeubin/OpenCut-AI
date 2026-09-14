@@ -2,7 +2,7 @@ import type { EffectDefinition } from "@/effects/types";
 
 export const aiVideoBackgroundRemoverEffectDefinition: EffectDefinition = {
 	type: "ai-video-background-remover",
-	name: "AI Video Background Remover",
+	name: "AI Remove BG",
 	keywords: ["background", "remove", "person", "video", "ai"],
 	params: [
 		{
@@ -19,4 +19,3 @@ export const aiVideoBackgroundRemoverEffectDefinition: EffectDefinition = {
 	],
 	renderer: { passes: [] },
 };
-
