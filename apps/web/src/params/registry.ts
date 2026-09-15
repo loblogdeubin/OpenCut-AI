@@ -1,20 +1,10 @@
-import type {
-	ParamDefinition,
-	ParamValue,
-	ParamValues,
-} from "@/params";
+import type { ParamDefinition, ParamValue, ParamValues } from "@/params";
 import { MIN_TRANSFORM_SCALE } from "@/animation/transform";
 import type { BlendMode } from "@/rendering";
-import type {
-	ElementType,
-	TimelineElement,
-} from "@/timeline";
+import type { ElementType, TimelineElement } from "@/timeline";
 import { DEFAULTS } from "@/timeline/defaults";
 import { VOLUME_DB_MAX, VOLUME_DB_MIN } from "@/timeline/audio-constants";
-import {
-	CORNER_RADIUS_MAX,
-	CORNER_RADIUS_MIN,
-} from "@/text/background";
+import { CORNER_RADIUS_MAX, CORNER_RADIUS_MIN } from "@/text/background";
 
 export type ElementParamDefinition<TKey extends string = string> =
 	ParamDefinition<TKey> & {
@@ -46,13 +36,7 @@ export class DefinitionRegistry<TKey extends string, TDefinition> {
 		this.entityName = entityName;
 	}
 
-	register({
-		key,
-		definition,
-	}: {
-		key: TKey;
-		definition: TDefinition;
-	}): void {
+	register({ key, definition }: { key: TKey; definition: TDefinition }): void {
 		this.definitions.set(key, definition);
 	}
 
@@ -185,14 +169,14 @@ const textElementParams: ElementParamDefinition[] = [
 		key: "fontFamily",
 		label: "Font Family",
 		type: "font",
-		default: "Arial",
+		default: "Gilroy",
 		keyframable: false,
 	},
 	{
 		key: "fontSize",
 		label: "Font Size",
 		type: "number",
-		default: 15,
+		default: 84,
 		min: 1,
 		step: 1,
 	},
@@ -218,11 +202,18 @@ const textElementParams: ElementParamDefinition[] = [
 		key: "fontWeight",
 		label: "Font Weight",
 		type: "select",
-		default: "normal",
+		default: "800",
 		keyframable: false,
 		options: [
-			{ value: "normal", label: "Normal" },
-			{ value: "bold", label: "Bold" },
+			{ value: "100", label: "Thin" },
+			{ value: "200", label: "Extra Light" },
+			{ value: "300", label: "Light" },
+			{ value: "400", label: "Regular" },
+			{ value: "500", label: "Medium" },
+			{ value: "600", label: "Semi Bold" },
+			{ value: "700", label: "Bold" },
+			{ value: "800", label: "Extra Bold" },
+			{ value: "900", label: "Black" },
 		],
 	},
 	{
@@ -335,7 +326,10 @@ elementParamRegistry.register({
 	key: "video",
 	definition: [...visualElementParams, ...audioElementParams],
 });
-elementParamRegistry.register({ key: "image", definition: visualElementParams });
+elementParamRegistry.register({
+	key: "image",
+	definition: visualElementParams,
+});
 elementParamRegistry.register({
 	key: "text",
 	definition: [...textElementParams, ...visualElementParams],
@@ -435,4 +429,3 @@ export function buildElementParamValues({
 	}
 	return values;
 }
-

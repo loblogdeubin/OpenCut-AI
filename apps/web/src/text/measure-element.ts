@@ -3,9 +3,7 @@ import { DEFAULTS } from "@/timeline/defaults";
 import type { TextElement } from "@/timeline";
 import type { TextBackground } from "@/text/background";
 import { resolveNumberAtTime } from "@/animation/values";
-import {
-	getTextVisualRect,
-} from "./layout";
+import { getTextVisualRect } from "./layout";
 import {
 	measureTextLayout,
 	type MeasuredTextLayout,
@@ -281,7 +279,23 @@ function readFontWeight({
 	value: unknown;
 	fallback: TextFontWeight;
 }): TextFontWeight {
-	return value === "bold" || value === "normal" ? value : fallback;
+	const normalized = typeof value === "number" ? String(value) : value;
+	switch (normalized) {
+		case "100":
+		case "200":
+		case "300":
+		case "400":
+		case "500":
+		case "600":
+		case "700":
+		case "800":
+		case "900":
+		case "normal":
+		case "bold":
+			return normalized;
+		default:
+			return fallback;
+	}
 }
 
 function readFontStyle({

@@ -84,5 +84,16 @@ export async function loadFonts({
 	families: string[];
 }): Promise<void> {
 	const googleFonts = families.filter((family) => !SYSTEM_FONTS.has(family));
-	await Promise.all(googleFonts.map((family) => loadFullFont({ family })));
+	if (families.includes("Gilroy")) googleFonts.push("DM Sans");
+	await Promise.all(
+		[...new Set(googleFonts)].map((family) =>
+			loadFullFont({
+				family,
+				weights:
+					family === "DM Sans"
+						? [100, 200, 300, 400, 500, 600, 700, 800, 900]
+						: [400, 700],
+			}),
+		),
+	);
 }

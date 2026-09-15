@@ -5,9 +5,7 @@ import { usePreviewViewport } from "@/preview/components/preview-viewport";
 import { useEditor } from "@/editor/use-editor";
 import type { TextElement } from "@/timeline";
 import { DEFAULTS } from "@/timeline/defaults";
-import {
-	getElementLocalTime,
-} from "@/animation";
+import { getElementLocalTime } from "@/animation";
 import { resolveTransformAtTime } from "@/rendering/animation-values";
 import { buildTransformFromParams } from "@/rendering";
 import { resolveTextLayout } from "@/text/primitives";
@@ -126,8 +124,11 @@ export function TextEditOverlay({
 				className="cursor-text select-text outline-none whitespace-pre"
 				style={{
 					fontSize: resolvedTextLayout.scaledFontSize,
-					fontFamily: textParams.fontFamily,
-					fontWeight: textParams.fontWeight === "bold" ? "bold" : "normal",
+					fontFamily:
+						textParams.fontFamily === "Gilroy"
+							? '"Gilroy", "DM Sans", sans-serif'
+							: textParams.fontFamily,
+					fontWeight: textParams.fontWeight,
 					fontStyle: textParams.fontStyle === "italic" ? "italic" : "normal",
 					textAlign: textParams.textAlign,
 					letterSpacing: `${canvasLetterSpacing}px`,
