@@ -33,6 +33,9 @@ import {
 } from "@/ai/chatgpt-bridge";
 import type { EditPlanV1 } from "@/ai/editor-adapter";
 import { AudioDirectorPanel } from "@/ai/components/audio-director-panel";
+import { decodeAudioToFloat32 } from "@/media/audio";
+import { transcriptionService } from "@/services/transcription/service";
+import { DEFAULT_TRANSCRIPTION_SAMPLE_RATE } from "@/transcription/audio";
 
 const EXAMPLE_PROMPT =
 	"Gabungkan semua footage, potong bagian diam lebih dari 2 detik, dan buat format vertikal 9:16.";
@@ -136,7 +139,23 @@ export function AiPromptPanel() {
 		setTranscriptionProgress(0);
 		try {
 			for (const [index, asset] of videos.entries()) {
-				const result = await transcribeMediaLocally({ file: asset.file });
+				const result = localAi?.transcription.available
+					? await transcribeMediaLocally({ file: asset.file })
+					: await (async () => {
+							const { samples } = await decodeAudioToFloat32({
+								audioBlob: asset.file,
+								sampleRate: DEFAULT_TRANSCRIPTION_SAMPLE_RATE,
+							});
+							return transcriptionService.transcribe({
+								audioData: samples,
+								onProgress: ({ progress }) =>
+									setTranscriptionProgress(
+										Math.round(
+											((index + progress / 100) / videos.length) * 100,
+										),
+									),
+							});
+						})();
 				setTranscripts((current) => [
 					...current,
 					{
@@ -391,23 +410,15 @@ export function AiPromptPanel() {
 						Planner lokal aktif. ChatGPT Plus/MCP belum dipasangkan; setiap plan
 						tetap divalidasi oleh Rust sebelum timeline berubah.
 					</p>
-					{localAi && (
-						<div className="mt-2 flex flex-wrap gap-1">
-							<Badge
-								variant={localAi.ffmpeg.available ? "outline" : "destructive"}
-							>
-								FFmpeg {localAi.ffmpeg.available ? "ready" : "missing"}
-							</Badge>
-							<Badge
-								variant={
-									localAi.transcription.available ? "outline" : "destructive"
-								}
-							>
-								Transkripsi{" "}
-								{localAi.transcription.available ? "ready" : "missing"}
-							</Badge>
-						</div>
-					)}
+					<div className="mt-2 flex flex-wrap gap-1">
+						<Badge variant="outline">
+							Visual {localAi?.ffmpeg.available ? "FFmpeg" : "browser"} ready
+						</Badge>
+						<Badge variant="outline">
+							Transkripsi{" "}
+							{localAi?.transcription.available ? "native" : "browser"} ready
+						</Badge>
+					</div>
 				</div>
 
 				<Textarea
@@ -426,7 +437,7 @@ export function AiPromptPanel() {
 					</span>
 					<span>Revision {projectRevision}</span>
 				</div>
-				{localAi?.transcription.available && mediaCount > 0 && (
+				{mediaCount > 0 && (
 					<Button
 						variant="outline"
 						className="w-full"
@@ -452,7 +463,7 @@ export function AiPromptPanel() {
 						))}
 					</div>
 				)}
-				{localAi?.ffmpeg.available && mediaCount > 0 && (
+				{mediaCount > 0 && (
 					<div className="space-y-2 rounded-lg border p-3">
 						<div className="flex items-center justify-between gap-2">
 							<p className="text-xs font-medium">Visual keyframes</p>
