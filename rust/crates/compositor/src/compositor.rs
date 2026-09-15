@@ -493,8 +493,14 @@ impl Compositor {
     ) -> Result<wgpu::Texture, CompositorError> {
         let mut current = self.copy_texture(context, encoder, source, width, height);
         for group in effect_pass_groups {
+            // An unavailable or empty effect must never make the whole video frame
+            // disappear. This also keeps projects made by a newer UI viewable in an
+            // older renderer while the matching WASM package is being updated.
+            if group.is_empty() {
+                continue;
+            }
             let passes = map_effect_passes(group);
-            current = self.effects.apply_with_encoder(
+            if let Ok(processed) = self.effects.apply_with_encoder(
                 context,
                 encoder,
                 ApplyEffectsOptions {
@@ -503,7 +509,9 @@ impl Compositor {
                     height,
                     passes: &passes,
                 },
-            )?;
+            ) {
+                current = processed;
+            }
         }
         Ok(current)
     }
