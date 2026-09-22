@@ -15,6 +15,7 @@ import type {
 	TextFontWeight,
 } from "@/text/primitives";
 import type { SubtitleCue, SubtitleStyleOverrides } from "./types";
+import { limitSubtitleLines } from "./limit-lines";
 
 const SUBTITLE_MAX_WIDTH_RATIO = 0.8;
 const SUBTITLE_BOTTOM_MARGIN_RATIO = 0.05;
@@ -81,7 +82,7 @@ function wrapSubtitleText({
 		wrappedParagraphs.push(lines.join("\n"));
 	}
 
-	return wrappedParagraphs.join("\n");
+	return limitSubtitleLines({ text: wrappedParagraphs.join("\n") });
 }
 
 function measureWrappedTextBlock({

@@ -13,6 +13,7 @@ import {
 	buildTextBackgroundFromElement,
 	buildTextLayoutParamsFromElement,
 } from "@/text/measure-element";
+import { limitSubtitleLines } from "@/subtitles/limit-lines";
 
 export function TextEditOverlay({
 	trackId,
@@ -43,11 +44,13 @@ export function TextEditOverlay({
 	const handleInput = useCallback(() => {
 		const div = divRef.current;
 		if (!div) return;
-		const text = div.innerText;
+		const text = /^Caption \d+$/.test(element.name)
+			? limitSubtitleLines({ text: div.innerText })
+			: div.innerText;
 		editor.timeline.previewElements({
 			updates: [{ trackId, elementId, updates: { params: { content: text } } }],
 		});
-	}, [editor.timeline, trackId, elementId]);
+	}, [editor.timeline, trackId, elementId, element.name]);
 
 	const handleKeyDown = useCallback(
 		({ event }: { event: React.KeyboardEvent }) => {

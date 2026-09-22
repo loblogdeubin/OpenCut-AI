@@ -3,6 +3,7 @@ import { MIN_TRANSFORM_SCALE } from "@/animation/transform";
 import type { BlendMode } from "@/rendering";
 import type { ElementType, TimelineElement } from "@/timeline";
 import { DEFAULTS } from "@/timeline/defaults";
+import { limitSubtitleLines } from "@/subtitles/limit-lines";
 import { VOLUME_DB_MAX, VOLUME_DB_MIN } from "@/timeline/audio-constants";
 import { CORNER_RADIUS_MAX, CORNER_RADIUS_MIN } from "@/text/background";
 
@@ -404,11 +405,18 @@ export function writeElementParamValue({
 		return param.write({ element, value });
 	}
 	if ("params" in element) {
+		const nextValue =
+			element.type === "text" &&
+			/^Caption \d+$/.test(element.name) &&
+			param.key === "content" &&
+			typeof value === "string"
+				? limitSubtitleLines({ text: value })
+				: value;
 		return {
 			...element,
 			params: {
 				...element.params,
-				[param.key]: value,
+				[param.key]: nextValue,
 			},
 		};
 	}
